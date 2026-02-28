@@ -4,30 +4,42 @@
 
 package frc.robot;
 
-import com.ctre.phoenix6.HootAutoReplay;
-
+import com.ctre.phoenix6.Utils;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import org.ironmaple.simulation.SimulatedArena;
+import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnField;
 
 public class Robot extends TimedRobot {
-    private Command m_autonomousCommand;
+    StructPublisher<Pose2d> pos = NetworkTableInstance.getDefault().getStructTopic("PredictedPos", Pose2d.struct)
+            .publish();
+    DoublePublisher gyroPos = NetworkTableInstance.getDefault().getDoubleTopic("Pigeon2 Pos").publish();
+    DoublePublisher posx = NetworkTableInstance.getDefault().getDoubleTopic("pos x").publish();
+    DoublePublisher posy = NetworkTableInstance.getDefault().getDoubleTopic("pos y").publish();
+    DoublePublisher rot = NetworkTableInstance.getDefault().getDoubleTopic("rotation").publish();
+    DoublePublisher realRot = NetworkTableInstance.getDefault().getDoubleTopic("realRot").publish();
 
-    private final RobotContainer m_robotContainer;
 
-    /* log and replay timestamp and joystick data */
-    private final HootAutoReplay m_timeAndJoystickReplay = new HootAutoReplay()
-        .withTimestampReplay()
-        .withJoystickReplay();
+    public static RobotContainer robotContainer;
 
     public Robot() {
-        m_robotContainer = new RobotContainer();
+
+    }
+
+    @Override
+    public void robotInit() {
+        robotContainer = new RobotContainer();
     }
 
     @Override
     public void robotPeriodic() {
-        m_timeAndJoystickReplay.update();
-        CommandScheduler.getInstance().run(); 
+        CommandScheduler.getInstance().run();
     }
 
     @Override
@@ -41,11 +53,6 @@ public class Robot extends TimedRobot {
 
     @Override
     public void autonomousInit() {
-        m_autonomousCommand = m_robotContainer.getAutonomousCommand();
-
-        if (m_autonomousCommand != null) {
-            CommandScheduler.getInstance().schedule(m_autonomousCommand);
-        }
     }
 
     @Override
@@ -56,13 +63,19 @@ public class Robot extends TimedRobot {
 
     @Override
     public void teleopInit() {
-        if (m_autonomousCommand != null) {
-            CommandScheduler.getInstance().cancel(m_autonomousCommand);
-        }
     }
 
     @Override
-    public void teleopPeriodic() {}
+    public void teleopPeriodic() {
+        StructPublisher<Pose2d> pos = NetworkTableInstance.getDefault().getStructTopic("PredictedPos", Pose2d.struct)
+                .publish();
+        DoublePublisher gyroPos = NetworkTableInstance.getDefault().getDoubleTopic("Pigeon2 Pos").publish();
+        DoublePublisher posx = NetworkTableInstance.getDefault().getDoubleTopic("pos x").publish();
+        DoublePublisher posy = NetworkTableInstance.getDefault().getDoubleTopic("pos y").publish();
+        DoublePublisher rot = NetworkTableInstance.getDefault().getDoubleTopic("rotation").publish();
+        DoublePublisher realRot = NetworkTableInstance.getDefault().getDoubleTopic("realRot").publish();
+
+    }
 
     @Override
     public void teleopExit() {}
@@ -79,5 +92,21 @@ public class Robot extends TimedRobot {
     public void testExit() {}
 
     @Override
-    public void simulationPeriodic() {}
+    public void simulationPeriodic() {
+        Pose2d realPose = robotContainer.drivetrain.getState().Pose;
+
+        robotContainer.visionSim.updateSim(realPose);
+        robotContainer.visionEst.update();
+
+        robotContainer.limelightSource.getVisionUpdate().ifPresent(vu -> {
+            VisionEstimation.addVisionMeasurement(vu.pose(), vu.timestampSeconds());
+        });
+
+        pos.set(VisionEstimation.getEstimatedPose2d());
+        posx.set(VisionEstimation.getEstimatedPose2d().getTranslation().getX());
+        posy.set(VisionEstimation.getEstimatedPose2d().getTranslation().getY());
+        rot.set(VisionEstimation.getEstimatedPose2d().getRotation().getRadians());
+        realRot.set(realPose.getRotation().getRadians());
+
+    }
 }
