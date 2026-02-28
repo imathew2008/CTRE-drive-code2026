@@ -16,9 +16,9 @@ const val floor = 0.0
 const val mass  = 0.45 //kg
 const val area  = 0.071 //m^2
 val ballRadius  = sqrt(area / Math.PI) //m
-val goal        = Vector3(3.05, 1.8, 0.0)
-val yMin        = goal.y - 0.01
-val yMax        = goal.y + 0.01
+//val goal        = Vector3(3.05, 1.8, 0.0)
+//val yMin        = goal.y - 0.01
+//val yMax        = goal.y + 0.01
 
 
 //robot/shooter constants
@@ -120,7 +120,7 @@ fun initialGuess(p0: Vector3, v0: Vector3, dt: Double, airResistance: Boolean, s
  *
  * @return SimResult containing trajectory metrics and samples
  */
-fun sim(p0: Vector3, v0: Vector3, dt: Double, airResistance: Boolean, spin: Boolean): SimResult {
+fun sim(distToGoal: Vector3, p0: Vector3, v0: Vector3, dt: Double, airResistance: Boolean, spin: Boolean): SimResult {
 
     var pBest            = p0
     var vBest            = v0
@@ -134,6 +134,8 @@ fun sim(p0: Vector3, v0: Vector3, dt: Double, airResistance: Boolean, spin: Bool
     var vCross: Vector3? = null
     var bestPlaneDist    = Double.POSITIVE_INFINITY
     var bestCrossErr     = Double.POSITIVE_INFINITY
+    val yMin = distToGoal.y - 0.01
+    val yMax = distToGoal.y + 0.01
 
     val samples = mutableListOf<ResultsToPrint>()
 
@@ -152,20 +154,20 @@ fun sim(p0: Vector3, v0: Vector3, dt: Double, airResistance: Boolean, spin: Bool
             time > maxTime || pos.y < floor || vel.norm > maxSpeed
         },
         log           = { _, pos, vel, force ->
-            val dist = (pos - goal).norm
+            val dist = (pos - distToGoal).norm
             if(dist < bestPlaneDist) {
                 bestPlaneDist = dist
                 pBest         = pos
                 vBest         = vel
             }
 
-            val a = crossXPlane(pPrev, pos, goal.x)
+            val a = crossXPlane(pPrev, pos, distToGoal.x)
             if (a != null) {
                 crossedPlane = true
                 val pAt = pPrev + (pos - pPrev) * a
                 val vAt = vPrev + (vel - vPrev) * a
 
-                val yzErr = hypot(pAt.y - goal.y, pAt.z - goal.z)
+                val yzErr = hypot(pAt.y - distToGoal.y, pAt.z - distToGoal.z)
                 if (yzErr < bestCrossErr) {
                     bestCrossErr = yzErr
                     pCross       = pAt
@@ -223,7 +225,7 @@ inline fun speedOptimizer(distToGoal: Vector3, p0: Vector3, spin: Boolean, airRe
 
     val seed    = v0ball
     var bestV   = seed
-    var bestRes = sim(p0, bestV, dt, airResistance, spin)
+    var bestRes = sim(distToGoal, p0, bestV, dt, airResistance, spin)
     var factor  = 2.0
 
     optimize(
@@ -233,7 +235,7 @@ inline fun speedOptimizer(distToGoal: Vector3, p0: Vector3, spin: Boolean, airRe
             val cand = current + dir * factor
             if (!possibleVelocity(cand)) null else cand
         },
-        simulate    = { v -> sim(p0, v, dt, airResistance, spin) },
+        simulate    = { v -> sim(distToGoal, p0, v, dt, airResistance, spin) },
         error       = { res -> res.cost },
         terminate   = { _, _, res ->
             if(res.cost < bestRes.cost) {

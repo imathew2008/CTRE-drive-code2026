@@ -37,7 +37,7 @@ public class Robot extends TimedRobot {
     private ChassisSpeeds robotSpeeds;
     private Vector3 r0;
     private Vector3 distToGoal;
-    public Vector3 goalPos = Vector3(4.625594, 4.034536, 0.0);
+    public Vector3 goalPos = new Vector3(4.625594, 4.034536, 0.0);
 
     private RebuiltFuelOnFly fuelOnFly;
     private boolean lastshot = false;
@@ -144,7 +144,7 @@ public class Robot extends TimedRobot {
             robotRotation = realPose.getRotation();
             robotSpeeds = robotContainer.drivetrain.getState().Speeds;
             r0 = new Vector3(realPose.getX(), realPose.getY(), 0.0);
-            distToGoal = new Vector3()
+            distToGoal = goalPos.minus(r0);
             Pair<Vector3, SimResult> result =
                     speedOptimizer(distToGoal, r0, true, true,
                             (i, v, r) -> null
