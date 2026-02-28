@@ -4,7 +4,12 @@
 
 package frc.robot;
 
-import com.ctre.phoenix6.Utils;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.LinearVelocity;
+import frc.robot.projectile.*;
+import frc.robot.projectile.Vector3;
+import kotlin.Pair;
+import static edu.wpi.first.units.Units.*;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -12,12 +17,10 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.networktables.*;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.gamepieces.GamePiece;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
-import org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnField;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
 
@@ -25,11 +28,16 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.wpilibj.Timer.delay;
+import static frc.robot.projectile.BetterSimKt.speedOptimizer;
 
 public class Robot extends TimedRobot {
     private Translation2d robotTranslation;
     private Rotation2d robotRotation;
     private ChassisSpeeds robotSpeeds;
+    private Vector3 r0;
+    private Vector3 distToGoal;
+    public Vector3 goalPos = Vector3(4.625594, 4.034536, 0.0);
 
     private RebuiltFuelOnFly fuelOnFly;
     private boolean lastshot = false;
@@ -131,31 +139,39 @@ public class Robot extends TimedRobot {
         realRot.set(realPose.getRotation().getRadians());
 
         boolean shoot = robotContainer.shooting();
-        if(shoot && !lastshot)
-        {
+        if(shoot && !lastshot) {
             robotTranslation = realPose.getTranslation();
             robotRotation = realPose.getRotation();
             robotSpeeds = robotContainer.drivetrain.getState().Speeds;
+            r0 = new Vector3(realPose.getX(), realPose.getY(), 0.0);
+            distToGoal = new Vector3()
+            Pair<Vector3, SimResult> result =
+                    speedOptimizer(distToGoal, r0, true, true,
+                            (i, v, r) -> null
+                    );
+
+            LinearVelocity bestSpeed = MetersPerSecond.of(result.getSecond().getResults().get(0).getVel().getNorm());
+            Angle bestAngle = Degrees.of(HelperFunctionsKt.angle(result.getSecond().getResults().get(0).getVel()));
+
             fuelOnFly = new RebuiltFuelOnFly(
                     robotTranslation,                 // live robot position
-                    new Translation2d(0, 0),      // shooter offset
+                    new Translation2d(0, 0),    // shooter offset
                     robotSpeeds,                      // live chassis speeds
                     robotRotation,                    // live rotation
-                    Meters.of(0.8),                     // shooter height
-                    MetersPerSecond.of(5.0),          // exit speed
-                    Degrees.of(45.0)                  // launch angle
+                    Meters.of(0.5461),      // shooter height
+                    bestSpeed,                        // exit speed
+                    bestAngle                        // launch angle
             );
             fuelOnFly.launch();
             SimulatedArena.getInstance().addGamePieceProjectile(fuelOnFly);
             System.out.println("projectiles=" + fuelProjectile.size());
-
         }
+
         lastshot = shoot;
         SimulatedArena.getInstance().simulationPeriodic();
         GamePieceProjectile.updateGamePieceProjectiles(SimulatedArena.getInstance(), fuelProjectile);
 
-        Pose3d[] fuelsPoses = SimulatedArena.getInstance()
-                .getGamePiecesArrayByType("RebuiltFuelOnField");
+        Pose3d[] fuelsPoses = SimulatedArena.getInstance().getGamePiecesArrayByType("RebuiltFuelOnField");
         ((StructArrayPublisher<Object>) (Object) fuelPublisher).accept( SimulatedArena.getInstance()
                 .getGamePiecesByType("RebuiltFuelOnField")
                 .stream().map(GamePiece::getPose3d).toArray());
