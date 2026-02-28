@@ -52,6 +52,7 @@ public class RobotContainer {
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
+
     public RobotContainer() {
         configureBindings();
 
@@ -79,6 +80,8 @@ public class RobotContainer {
 
         drivetrain.resetPose(new Pose2d(3, 3, new Rotation2d()));
     }
+
+    public boolean shooting() { return joystick.getRightTriggerAxis() > 0.5; }
 
     private void configureBindings() {
         // Note that X is defined as forward according to WPILib convention,
