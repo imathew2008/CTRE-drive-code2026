@@ -19,13 +19,16 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
+import java.util.Arrays;
+
 public class RobotContainer {
+    private static final double deadBand = 0.15;
     private double MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
     private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
+            .withDeadband(0.0).withRotationalDeadband(0.0) // Add a 10% deadband
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
@@ -36,6 +39,29 @@ public class RobotContainer {
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
+    public static double[] applyCircularDeadband(double x, double y, double deadband) {
+
+        double mag = Math.sqrt(x * x + y * y);
+        if (mag < deadband) {
+            return new double[]{0.0, 0.0};
+        }
+        double scaledMag = (mag - deadband) / (1.0 - deadband);
+        double scale = scaledMag / mag;
+
+        return new double[]{
+                x * scale,
+                y * scale
+        };
+    }
+
+    public static double applyDeadband1D(double value, double deadband) {
+        if (Math.abs(value) <= deadband) {
+            return 0.0;
+        }
+        double scaled = (Math.abs(value) - deadband) / (1.0 - deadband);
+        return Math.copySign(scaled, value);
+    }
+
     public RobotContainer() {
         configureBindings();
     }
@@ -44,16 +70,21 @@ public class RobotContainer {
         // Note that X is defined as forward according to WPILib convention,
         // and Y is defined as to the left according to WPILib convention.
         drivetrain.setDefaultCommand(
-            // Drivetrain will execute this command periodically
-            drivetrain.applyRequest(() ->
-                drive.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                    .withVelocityY(-joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                    .withRotationalRate(-joystick.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
-            )
-        );
+                drivetrain.applyRequest(() -> {
+                    double x = -joystick.getLeftY();
+                    double y = -joystick.getLeftX();
+                    double rot = -joystick.getRightX();
 
-        // Idle while the robot is disabled. This ensures the configured
-        // neutral mode is applied to the drive motors while disabled.
+                    double[] xy = applyCircularDeadband(x, y, deadBand);
+                    double omega = applyDeadband1D(rot, deadBand);
+//                    System.out.println("xy: " + Arrays.toString(xy));
+//                    System.out.println("x: " + x);
+//                    System.out.println("y: " + y);
+                    return drive
+                            .withVelocityX(xy[0] * MaxSpeed)
+                            .withVelocityY(xy[1] * MaxSpeed)
+                            .withRotationalRate(omega * MaxAngularRate);
+                }));
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
