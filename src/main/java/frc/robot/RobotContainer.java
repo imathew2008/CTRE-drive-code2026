@@ -57,22 +57,30 @@ public class RobotContainer {
         configureBindings();
 
         // Camera pose relative to robot (fill in real values later)
-        Transform3d robotToCamera = new Transform3d(
-                new Translation3d(0.0, 0.0, 0.0),
-                new Rotation3d(0.0, 0.0, 0.0)
+        Transform3d robotToCameraOne = new Transform3d(
+                new Translation3d(-0.265, -0.366, 0.502),
+                new Rotation3d(0.0, 0.0, 45.0)
+        );
+        Transform3d robotToCameraTwo = new Transform3d(
+                new Translation3d(-0.265, 0.366, 0.502),
+                new Rotation3d(0.0, 0.0, -45.0)
         );
 
         this.visionSim = new VisionSim(
-                "camera",
-                robotToCamera,
+                "cameraOne",
+                "cameraTwo",
+                robotToCameraOne,
+                robotToCameraTwo,
                 fieldLayout
         );
 
-// If your LimelightMeasurementSource expects (camera, fieldLayout, robotToCamera)
+// If your LimelightMeasurementSource expects (camera, fieldLayout, robotToCameraOne)
         this.limelightSource = new LimelightMeasurementSource(
-                visionSim.getCamera(),
+                visionSim.getCameraOne(),
+                visionSim.getCameraTwo(),
                 fieldLayout,
-                robotToCamera
+                robotToCameraOne,
+                robotToCameraTwo
         );
 
 // VisionEst now should take your drivetrain (NOT MapleSim wrapper)

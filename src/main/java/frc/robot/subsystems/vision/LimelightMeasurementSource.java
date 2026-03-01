@@ -13,33 +13,60 @@ import java.util.Optional;
 
 public class LimelightMeasurementSource
 {
-    private final PhotonCamera camera;
-    private final PhotonPoseEstimator poseEstimator;
+    private final PhotonCamera cameraOne;
+    private final PhotonCamera cameraTwo;
+    private final PhotonPoseEstimator poseEstimatorOne;
+    private final PhotonPoseEstimator poseEstimatorTwo;
     
     public record VisionUpdate(Pose2d pose, double timestampSeconds) {}
     
-    public LimelightMeasurementSource(PhotonCamera camera, AprilTagFieldLayout tags, Transform3d robotToCamera)
+    public LimelightMeasurementSource(PhotonCamera cameraOne, PhotonCamera cameraTwo, AprilTagFieldLayout tags, Transform3d robotToCameraOne, Transform3d robotToCameraTwo)
     {
-        this.camera = camera;
-        
-        this.poseEstimator = new PhotonPoseEstimator(
+        this.cameraOne = cameraOne;
+        this.cameraTwo = cameraTwo;
+        this.poseEstimatorOne = new PhotonPoseEstimator(
                 tags,
-                robotToCamera
+                robotToCameraOne
         );
+        this.poseEstimatorTwo = new PhotonPoseEstimator(
+                tags,
+                robotToCameraTwo
+        );
+        
     }
-    
-    public Optional<VisionUpdate> getVisionUpdate()
-    {
-        List<PhotonPipelineResult> result = camera.getAllUnreadResults();
-        if(result.isEmpty()) return Optional.empty();
 
-        Optional<EstimatedRobotPose> est = poseEstimator.estimateLowestAmbiguityPose(result.get(result.size() - 1));
-        if(est.isEmpty()) return Optional.empty();
-        
-        Pose2d pose2d = est.get().estimatedPose.toPose2d();
-        double ts = est.get().timestampSeconds;
-        
-        return Optional.of(new VisionUpdate(pose2d, ts));
+    public List<VisionUpdate> getVisionUpdate()
+    {
+        List<VisionUpdate> updates = new java.util.ArrayList<>();
+
+        List<PhotonPipelineResult> resultOne = cameraOne.getAllUnreadResults();
+        List<PhotonPipelineResult> resultTwo = cameraTwo.getAllUnreadResults();
+
+        if (!resultOne.isEmpty()) {
+            var estOne = poseEstimatorOne.estimateLowestAmbiguityPose(
+                    resultOne.get(resultOne.size() - 1)
+            );
+
+            if (estOne.isPresent()) {
+                Pose2d pose = estOne.get().estimatedPose.toPose2d();
+                double ts = estOne.get().timestampSeconds;
+                updates.add(new VisionUpdate(pose, ts));
+            }
+        }
+
+        if (!resultTwo.isEmpty()) {
+            var estTwo = poseEstimatorTwo.estimateLowestAmbiguityPose(
+                    resultTwo.get(resultTwo.size() - 1)
+            );
+
+            if (estTwo.isPresent()) {
+                Pose2d pose = estTwo.get().estimatedPose.toPose2d();
+                double ts = estTwo.get().timestampSeconds;
+                updates.add(new VisionUpdate(pose, ts));
+            }
+        }
+
+        return updates;
     }
     
 }

@@ -9,24 +9,31 @@ import org.photonvision.simulation.SimCameraProperties;
 import org.photonvision.simulation.VisionSystemSim;
 
 public class VisionSim {
-    private final PhotonCamera camera;
+    private final PhotonCamera cameraOne;
+    private final PhotonCamera cameraTwo;
     private final VisionSystemSim visionSim;
-    private final PhotonCameraSim cameraSim;
-    
-    public VisionSim(String cameraName, Transform3d robotToCamera, AprilTagFieldLayout tags) {
-        camera = new PhotonCamera(cameraName);
+    private final PhotonCameraSim cameraSimOne;
+    private final PhotonCameraSim cameraSimTwo;
+    public VisionSim(String cameraNameOne, String cameraNameTwo, Transform3d robotToCameraOne, Transform3d robotToCameraTwo, AprilTagFieldLayout tags) {
+        cameraOne = new PhotonCamera(cameraNameOne);
+        cameraTwo = new  PhotonCamera(cameraNameTwo);
         visionSim = new VisionSystemSim("photonvision");
         visionSim.addAprilTags(tags);
         SimCameraProperties cameraProperties = new SimCameraProperties();
         
-        cameraSim = new PhotonCameraSim(camera, cameraProperties);
-        visionSim.addCamera(cameraSim, robotToCamera);
+        cameraSimOne = new PhotonCameraSim(cameraOne, cameraProperties);
+        cameraSimTwo = new PhotonCameraSim(cameraTwo, cameraProperties);
+        visionSim.addCamera(cameraSimOne, robotToCameraOne);
+        visionSim.addCamera(cameraSimTwo, robotToCameraTwo);
     }
     
     public void updateSim(Pose2d robotPose) {
         visionSim.update(robotPose);
     }
-    public PhotonCamera getCamera() {
-        return camera;
+    public PhotonCamera getCameraOne() {
+        return cameraOne;
+    }
+    public PhotonCamera getCameraTwo() {
+        return cameraTwo;
     }
 }
