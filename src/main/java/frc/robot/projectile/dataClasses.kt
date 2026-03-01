@@ -20,6 +20,7 @@ data class Vector3(val x: Double, val y: Double, val z: Double) {
     operator fun div  (s: Double)  = Vector3(x / s, y / s, z / s)
 
     val norm: Double get() = sqrt(x * x + y * y + z * z)
+
    fun cross(v: Vector3) = Vector3(
         y * v.z - z * v.y,
         z * v.x - x * v.z,

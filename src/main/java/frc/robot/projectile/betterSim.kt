@@ -6,7 +6,7 @@ import kotlin.math.*
 //stuff to change
 val v0robot          = Vector3(0.0, 0.0, 0.0)
 val hoodAngle0       = Math.toRadians(60.0)
-val goalAngle        = Math.toRadians(-45.0)
+val goalAngle        = Math.toRadians(-60.0)
 const val topRpm     = 3000.0
 const val bottomRpm  = 9000.0
 
