@@ -122,12 +122,13 @@ public class Robot extends TimedRobot {
         robotContainer.visionSim.updateSim(realPose);
         robotContainer.visionEst.update();
 
-        for (var vu : robotContainer.limelightSource.getVisionUpdate()) {
-            VisionEstimation.addVisionMeasurement(
-                    vu.pose(),
-                    vu.timestampSeconds()
-            );
-        }
+        robotContainer.limelightSource.getVisionUpdate()
+                .ifPresent(vu ->
+                        VisionEstimation.addVisionMeasurement(
+                                vu.pose(),
+                                vu.timestampSeconds()
+                        )
+                );
 
         pos.set(VisionEstimation.getEstimatedPose2d());
         posx.set(VisionEstimation.getEstimatedPose2d().getTranslation().getX());

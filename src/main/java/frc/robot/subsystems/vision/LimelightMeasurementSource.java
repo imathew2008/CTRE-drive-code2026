@@ -2,6 +2,7 @@ package frc.robot.subsystems.vision;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import org.photonvision.EstimatedRobotPose;
 import org.photonvision.PhotonCamera;
@@ -35,38 +36,70 @@ public class LimelightMeasurementSource
         
     }
 
-    public List<VisionUpdate> getVisionUpdate()
+    public Optional<VisionUpdate> getVisionUpdate()
     {
-        List<VisionUpdate> updates = new java.util.ArrayList<>();
-
-        List<PhotonPipelineResult> resultOne = cameraOne.getAllUnreadResults();
-        List<PhotonPipelineResult> resultTwo = cameraTwo.getAllUnreadResults();
-
-        if (!resultOne.isEmpty()) {
-            var estOne = poseEstimatorOne.estimateLowestAmbiguityPose(
-                    resultOne.get(resultOne.size() - 1)
-            );
+        VisionUpdate v1 = null;
+        VisionUpdate v2 = null;
+        
+        List<PhotonPipelineResult> resultsOne = cameraOne.getAllUnreadResults();
+        if (!resultsOne.isEmpty()) {
+            PhotonPipelineResult latest = resultsOne.get(resultsOne.size() - 1);
+            var estOne = poseEstimatorOne.estimateCoprocMultiTagPose(latest);
 
             if (estOne.isPresent()) {
                 Pose2d pose = estOne.get().estimatedPose.toPose2d();
                 double ts = estOne.get().timestampSeconds;
-                updates.add(new VisionUpdate(pose, ts));
+                v1 = new VisionUpdate(pose, ts);
             }
         }
-
-        if (!resultTwo.isEmpty()) {
-            var estTwo = poseEstimatorTwo.estimateLowestAmbiguityPose(
-                    resultTwo.get(resultTwo.size() - 1)
-            );
+        
+        List<PhotonPipelineResult> resultsTwo = cameraTwo.getAllUnreadResults();
+        if (!resultsTwo.isEmpty()) {
+            PhotonPipelineResult latest = resultsTwo.get(resultsTwo.size() - 1);
+            var estTwo = poseEstimatorTwo.estimateCoprocMultiTagPose(latest);
 
             if (estTwo.isPresent()) {
                 Pose2d pose = estTwo.get().estimatedPose.toPose2d();
                 double ts = estTwo.get().timestampSeconds;
-                updates.add(new VisionUpdate(pose, ts));
+                v2 = new VisionUpdate(pose, ts);
             }
         }
+        
 
-        return updates;
+        if (v1 == null && v2 == null)
+            return Optional.empty();
+
+        if (v1 != null && v2 == null)
+            return Optional.of(v1);
+
+        if (v2 != null && v1 == null)
+            return Optional.of(v2);
+        
+        Pose2d p1 = v1.pose();
+        Pose2d p2 = v2.pose();
+        
+        double w1 = 0.5;
+        double w2 = 0.5;
+        
+        double x = w1 * p1.getX() + w2 * p2.getX();
+        double y = w1 * p1.getY() + w2 * p2.getY();
+        
+        double cos =
+                w1 * Math.cos(p1.getRotation().getRadians()) +
+                        w2 * Math.cos(p2.getRotation().getRadians());
+
+        double sin =
+                w1 * Math.sin(p1.getRotation().getRadians()) +
+                        w2 * Math.sin(p2.getRotation().getRadians());
+
+        double theta = Math.atan2(sin, cos);
+
+        Pose2d fusedPose = new Pose2d(x, y, new Rotation2d(theta));
+
+        double fusedTimestamp =
+                Math.max(v1.timestampSeconds(), v2.timestampSeconds());
+
+        return Optional.of(new VisionUpdate(fusedPose, fusedTimestamp));
     }
     
 }
