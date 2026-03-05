@@ -19,12 +19,10 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
-import java.util.Arrays;
-
 public class RobotContainer {
-    private static final double deadBand = 0.15;
-    private double MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+    private static final double deadBand = 0.05;
+    private final double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
+    private final double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
@@ -62,6 +60,16 @@ public class RobotContainer {
         return Math.copySign(scaled, value);
     }
 
+    public static double squareKeepSign(double x) {
+        return Math.copySign(x * x, x);
+    }
+
+    public static double[] squareVectorKeepDirection(double x, double y) {
+        double mag = Math.hypot(x, y);
+        if (mag <= 1e-9) return new double[] {0.0, 0.0};
+        return new double[] { x * mag, y *mag };
+    }
+
     public RobotContainer() {
         configureBindings();
     }
@@ -71,15 +79,14 @@ public class RobotContainer {
         // and Y is defined as to the left according to WPILib convention.
         drivetrain.setDefaultCommand(
                 drivetrain.applyRequest(() -> {
-                    double x = -joystick.getLeftY();
-                    double y = -joystick.getLeftX();
+                    double x   = -joystick.getLeftY();
+                    double y   = -joystick.getLeftX();
                     double rot = -joystick.getRightX();
 
-                    double[] xy = applyCircularDeadband(x, y, deadBand);
-                    double omega = applyDeadband1D(rot, deadBand);
-//                    System.out.println("xy: " + Arrays.toString(xy));
-//                    System.out.println("x: " + x);
-//                    System.out.println("y: " + y);
+                    double[] xy  = applyCircularDeadband(x, y, deadBand);
+                    xy           = squareVectorKeepDirection(xy[0], xy[1]);
+                    double omega = squareKeepSign(applyDeadband1D(rot, deadBand));
+
                     return drive
                             .withVelocityX(xy[0] * MaxSpeed)
                             .withVelocityY(xy[1] * MaxSpeed)
@@ -102,8 +109,7 @@ public class RobotContainer {
         joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
-        // Reset the field-centric heading on left bumper press.
-        joystick.leftBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+        joystick.start().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }
