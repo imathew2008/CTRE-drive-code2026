@@ -14,7 +14,7 @@ import frc.robot.subsystems.swerve.CommandSwerveDrivetrain;
 
 public class VisionEstimation {
     private static ExtendedKalmanFilter<N3, N3, N3> poseObserver;
-    private final CommandSwerveDrivetrain ms;
+    private static CommandSwerveDrivetrain ms;
     private static final double dt = 0.02;
     private static Matrix<N3, N1> lastU = VecBuilder.fill(0.0, 0.0, 0.0);
 
@@ -41,7 +41,7 @@ public class VisionEstimation {
             );
             
     public VisionEstimation(CommandSwerveDrivetrain ms) {
-        this.ms = ms;
+        VisionEstimation.ms = ms;
         poseObserver = new ExtendedKalmanFilter<N3, N3, N3>(
                 Nat.N3(),
                 Nat.N3(),
@@ -57,9 +57,9 @@ public class VisionEstimation {
     }
     public void update() {
         ChassisSpeeds visionSpeed = ms.getState().Speeds;
-        Rotation2d visionYaw = ms.getState().Pose.getRotation();
+        Rotation2d gyroYaw = ms.getPigeon2().getRotation2d();
         ChassisSpeeds fieldSpeeds =
-                ChassisSpeeds.fromRobotRelativeSpeeds(visionSpeed, visionYaw);
+                ChassisSpeeds.fromRobotRelativeSpeeds(visionSpeed, gyroYaw);
         
         Matrix<N3, N1> u =
                 VecBuilder.fill(
@@ -72,11 +72,12 @@ public class VisionEstimation {
         
     }
     public static void addVisionMeasurement(Pose2d visionPose, double v) {
+        Rotation2d gyroYaw = ms.getPigeon2().getRotation2d();
         Matrix<N3, N1> z =
                 VecBuilder.fill(
                         visionPose.getX(),
                         visionPose.getY(),
-                        visionPose.getRotation().getRadians()
+                        gyroYaw.getRadians()
                 );
 
         poseObserver.correct(lastU, z);
