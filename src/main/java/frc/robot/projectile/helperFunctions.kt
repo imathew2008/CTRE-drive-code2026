@@ -4,6 +4,8 @@ package frc.robot.projectile
 //import androidx.compose.ui.graphics.Color
 //import androidx.compose.ui.graphics.drawscope.DrawScope
 import kotlin.math.atan2
+import frc.robot.Vector3
+import frc.robot.BallExit
 
 /**
  * Returns the angle of a vector in radians

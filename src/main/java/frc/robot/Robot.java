@@ -4,12 +4,12 @@
 
 package frc.robot;
 
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.LinearVelocity;
-import frc.robot.projectile.*;
-import frc.robot.projectile.Vector3;
+import java.util.HashSet;
+import java.util.Set;
 import kotlin.Pair;
 import static edu.wpi.first.units.Units.*;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -23,36 +23,28 @@ import org.ironmaple.simulation.gamepieces.GamePiece;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnField;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
-
-import java.util.HashSet;
-import java.util.Set;
-
 import static frc.robot.projectile.BetterSimKt.speedOptimizer;
-import static java.lang.Math.*;
+import frc.robot.projectile.*;
 
 public class Robot extends TimedRobot {
     private Translation2d robotTranslation;
     private Rotation2d robotRotation;
     private ChassisSpeeds robotSpeeds;
-    private Vector3 r0;
-    private Vector3 distToGoal;
     public Vector3 goalPos = new Vector3(4.625594, 4.034536, 1.8288);
     public Vector3 goalPosFloor = new Vector3(4.625594, 4.034536, 0.0);
 
-    private RebuiltFuelOnFly fuelOnFly;
     private boolean lastshot = false;
     private final Set<GamePieceProjectile> fuelProjectile = new HashSet<>();
     StructArrayPublisher<Pose3d> fuelPublisher = NetworkTableInstance.getDefault()
             .getStructArrayTopic("MyPoseArray", Pose3d.struct)
             .publish();
-
-    StructPublisher<Pose2d> pos = NetworkTableInstance.getDefault().getStructTopic("PredictedPos", Pose2d.struct)
-            .publish();
-   DoublePublisher posx = NetworkTableInstance.getDefault().getDoubleTopic("pos x").publish();
+    StructPublisher<Pose2d> navXpos = NetworkTableInstance.getDefault().getStructTopic("NavX pos", Pose2d.struct).publish();
+    DoublePublisher posx = NetworkTableInstance.getDefault().getDoubleTopic("pos x").publish();
     DoublePublisher posy = NetworkTableInstance.getDefault().getDoubleTopic("pos y").publish();
     DoublePublisher rot = NetworkTableInstance.getDefault().getDoubleTopic("rotation").publish();
     DoublePublisher realRot = NetworkTableInstance.getDefault().getDoubleTopic("realRot").publish();
-
+    StructPublisher<Pose2d> pos = NetworkTableInstance.getDefault().getStructTopic("Real Pos", Pose2d.struct)
+            .publish();
 
     public static RobotContainer robotContainer;
 
@@ -123,51 +115,68 @@ public class Robot extends TimedRobot {
         robotContainer.visionEst.update();
 
         robotContainer.limelightSource.getVisionUpdate()
-                .ifPresent(vu ->
-                        VisionEstimation.addVisionMeasurement(
-                                vu.pose(),
-                                vu.timestampSeconds()
-                        )
-                );
+                .ifPresent(vu -> VisionEstimation.addPoseMeasurement(vu.pose()));
 
-        pos.set(VisionEstimation.getEstimatedPose2d());
+        navXpos.set(robotContainer.questNavSubsystem.getLatestNoisyQuestNavPose());
+        pos.set(robotContainer.drivetrain.getState().Pose);
         posx.set(VisionEstimation.getEstimatedPose2d().getTranslation().getX());
         posy.set(VisionEstimation.getEstimatedPose2d().getTranslation().getY());
         rot.set(VisionEstimation.getEstimatedPose2d().getRotation().getRadians());
         realRot.set(realPose.getRotation().getRadians());
 
         boolean shoot = robotContainer.shooting();
-        if(shoot && !lastshot) {
+        if (shoot && !lastshot) {
             robotTranslation = realPose.getTranslation();
             robotRotation = realPose.getRotation();
             robotSpeeds = robotContainer.drivetrain.getState().Speeds;
-            r0 = new Vector3(realPose.getX(), realPose.getY(), 0.0);
-            distToGoal = new Vector3(goalPosFloor.minus(r0).getNorm(), goalPos.getZ(), 0.0);
+            Vector3 r0 = new Vector3(realPose.getX(), realPose.getY(), 0.0);
+            Vector3 distToGoal = new Vector3(goalPosFloor.minus(r0).getNorm(), goalPos.getZ(), 0.0);
             System.out.println("Distance to goal: " + distToGoal);
             System.out.println("robot: " + r0);
             System.out.println("goal: " + goalPos);
+
             Pair<Vector3, SimResult> result =
-                    speedOptimizer(distToGoal, Vector3.Companion.getZero(), false, false,
+                    speedOptimizer(
+                            distToGoal,
+                            Vector3.Companion.getZero(),
+                            false,
+                            false,
                             (i, v, r) -> null
                     );
 
-            LinearVelocity bestSpeed = MetersPerSecond.of(result.getSecond().getResults().get(0).getVel().getNorm());
-            Angle bestAngle = Radians.of(HelperFunctionsKt.angle(result.getSecond().getResults().get(0).getVel()));
-            LinearVelocity initialSpeed = MetersPerSecond.of(result.getSecond().getResults().get(result.getSecond().getResults().size() - 1).getVel().getNorm());
-            Angle initalAngle = Radians.of(HelperFunctionsKt.angle(result.getSecond().getResults().get(result.getSecond().getResults().size() - 1).getVel()));
+            LinearVelocity bestSpeed =
+                    MetersPerSecond.of(result.getSecond().getResults().get(0).getVel().getNorm());
+            Angle bestAngle =
+                    Radians.of(HelperFunctionsKt.angle(result.getSecond().getResults().get(0).getVel()));
+            LinearVelocity initialSpeed =
+                    MetersPerSecond.of(
+                            result.getSecond().getResults()
+                                    .get(result.getSecond().getResults().size() - 1)
+                                    .getVel()
+                                    .getNorm()
+                    );
+            Angle initalAngle =
+                    Radians.of(
+                            HelperFunctionsKt.angle(
+                                    result.getSecond().getResults()
+                                            .get(result.getSecond().getResults().size() - 1)
+                                            .getVel()
+                            )
+                    );
+
             System.out.println("Best Speed: " + bestSpeed);
             System.out.println("Best Angle: " + bestAngle.in(Degrees));
             System.out.println("Final Angle: " + initalAngle.in(Degrees));
             System.out.println("Initial Speed: " + initialSpeed);
 
-            fuelOnFly = new RebuiltFuelOnFly(
-                    robotTranslation,                 // live robot position
-                    new Translation2d(0, 0),    // shooter offset
-                    robotSpeeds,                      // live chassis speeds
-                    robotRotation,                    // live rotation
-                    Meters.of(0.5461),      // shooter height
-                    bestSpeed,                       // exit speed
-                    bestAngle                        // launch angle
+            RebuiltFuelOnFly fuelOnFly = new RebuiltFuelOnFly(
+                    robotTranslation,
+                    new Translation2d(0, 0),
+                    robotSpeeds,
+                    robotRotation,
+                    Meters.of(0.5461),
+                    bestSpeed,
+                    bestAngle
             );
             fuelOnFly.launch();
             SimulatedArena.getInstance().addGamePieceProjectile(fuelOnFly);
@@ -177,10 +186,13 @@ public class Robot extends TimedRobot {
         lastshot = shoot;
         SimulatedArena.getInstance().simulationPeriodic();
         GamePieceProjectile.updateGamePieceProjectiles(SimulatedArena.getInstance(), fuelProjectile);
-        Pose3d[] fuelsPoses = SimulatedArena.getInstance()
-                .getGamePiecesArrayByType("RebuiltFuelOnField");
-        ((StructArrayPublisher<Object>) (Object) fuelPublisher).accept( SimulatedArena.getInstance()
-                .getGamePiecesByType("RebuiltFuelOnField")
-                .stream().map(GamePiece::getPose3d).toArray());
+
+        ((StructArrayPublisher<Object>) (Object) fuelPublisher).accept(
+                SimulatedArena.getInstance()
+                        .getGamePiecesByType("RebuiltFuelOnField")
+                        .stream()
+                        .map(GamePiece::getPose3d)
+                        .toArray()
+        );
     }
 }

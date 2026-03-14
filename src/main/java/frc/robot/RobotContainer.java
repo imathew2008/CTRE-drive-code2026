@@ -4,37 +4,32 @@
 
 package frc.robot;
 
-import static edu.wpi.first.units.Units.*;
-
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.questNav.QuestNavSubsystem;
 import frc.robot.subsystems.swerve.CommandSwerveDrivetrain;
-
+import frc.robot.subsystems.vision.VisionSim;
+import frc.robot.subsystems.vision.LimelightMeasurementSource;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.geometry.Rotation3d;
-
-import frc.robot.subsystems.vision.VisionSim;
-import frc.robot.subsystems.vision.LimelightMeasurementSource;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
+import static edu.wpi.first.units.Units.*;
 
 public class RobotContainer {
     public final VisionEstimation visionEst;
     public final VisionSim visionSim;
     public final LimelightMeasurementSource limelightSource;
+    public final QuestNavSubsystem questNavSubsystem;
 
-    private final AprilTagFieldLayout fieldLayout =
-            AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
-
-    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate =
-            RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+    private final double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
+    private final double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
@@ -59,13 +54,14 @@ public class RobotContainer {
         // Camera pose relative to robot (fill in real values later)
         Transform3d robotToCameraOne = new Transform3d(
                 new Translation3d(-0.265, -0.366, 0.502),
-                new Rotation3d(0.0, 0.0, 45.0)
+                new Rotation3d(0.0, 0.0, Math.toRadians(45.0))
         );
         Transform3d robotToCameraTwo = new Transform3d(
                 new Translation3d(-0.265, 0.366, 0.502),
-                new Rotation3d(0.0, 0.0, -45.0)
+                new Rotation3d(0.0, 0.0, Math.toRadians(-45.0))
         );
 
+        AprilTagFieldLayout fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
         this.visionSim = new VisionSim(
                 "cameraOne",
                 "cameraTwo",
@@ -74,7 +70,6 @@ public class RobotContainer {
                 fieldLayout
         );
 
-// If your LimelightMeasurementSource expects (camera, fieldLayout, robotToCameraOne)
         this.limelightSource = new LimelightMeasurementSource(
                 visionSim.getCameraOne(),
                 visionSim.getCameraTwo(),
@@ -83,8 +78,8 @@ public class RobotContainer {
                 robotToCameraTwo
         );
 
-// VisionEst now should take your drivetrain (NOT MapleSim wrapper)
         this.visionEst = new VisionEstimation(drivetrain);
+        this.questNavSubsystem = new QuestNavSubsystem(drivetrain);
 
         drivetrain.resetPose(new Pose2d(3, 3, new Rotation2d()));
     }
@@ -124,7 +119,7 @@ public class RobotContainer {
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // reset the field-centric heading on left bumper press
-        joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+        joystick.leftBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }

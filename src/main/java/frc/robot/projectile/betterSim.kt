@@ -1,6 +1,9 @@
 package frc.robot.projectile
 
 import kotlin.math.*
+import frc.robot.Vector3
+import frc.robot.SimResult
+import frc.robot.ResultsToPrint
 
 
 //stuff to change

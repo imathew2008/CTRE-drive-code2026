@@ -1,5 +1,7 @@
 package frc.robot.projectile
 
+import frc.robot.Vector3
+
 /**
  * Numerically simulates projectile motion using explicit time stepping.
  *

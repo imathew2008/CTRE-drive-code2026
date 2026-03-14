@@ -1,6 +1,14 @@
-package frc.robot.projectile
+package frc.robot
 
+import kotlin.math.hypot
 import kotlin.math.sqrt
+
+data class Vector2(var x: Double, var y: Double) {
+    fun norm(): Double = hypot(x, y)
+    fun plusAssign(o: Vector2) { x += o.x; y += o.y }
+    fun times(s: Double): Vector2 = Vector2(x * s, y * s)
+    fun minus(o: Vector2): Vector2 = Vector2(x - o.x, y - o.y)
+}
 
 /**
  * 3D vector used for physics calculations.
@@ -21,10 +29,10 @@ data class Vector3(val x: Double, val y: Double, val z: Double) {
 
     val norm: Double get() = sqrt(x * x + y * y + z * z)
 
-   fun cross(v: Vector3) = Vector3(
-        y * v.z - z * v.y,
-        z * v.x - x * v.z,
-        x * v.y - y * v.x)
+    fun cross(v: Vector3) = Vector3(
+            y * v.z - z * v.y,
+            z * v.x - x * v.z,
+            x * v.y - y * v.x)
 
     companion object {
         val zero = Vector3(0.0, 0.0, 0.0)
@@ -49,9 +57,9 @@ data class ResultsToPrint(val forces: Vector3, val pos: Vector3, val vel: Vector
  * @property ballRpm angular velocity converted to RPM
  */
 data class BallExit(
-    val vExit:     Double,
-    val omegaBall: Double,
-    val ballRpm:   Double)
+        val vExit:     Double,
+        val omegaBall: Double,
+        val ballRpm:   Double)
 
 /**
  * Results from a full projectile simulation.
@@ -73,15 +81,15 @@ data class BallExit(
  * @property distance closest spatial error to target
  */
 data class SimResult(
-    val hitWindow:    Boolean,
-    val crossedPlane: Boolean,
-    val cost:         Double,
-    val pCross:       Vector3?,
-    val vCross:       Vector3?,
-    val pBest:        Vector3,
-    val vBest:        Vector3,
-    val results:      List<ResultsToPrint>,
-    val above:        Boolean,
-    val downward:     Boolean,
-    val phiError:     Double,
-    val distance:     Double)
+        val hitWindow:    Boolean,
+        val crossedPlane: Boolean,
+        val cost:         Double,
+        val pCross:       Vector3?,
+        val vCross:       Vector3?,
+        val pBest:        Vector3,
+        val vBest:        Vector3,
+        val results:      List<ResultsToPrint>,
+        val above:        Boolean,
+        val downward:     Boolean,
+        val phiError:     Double,
+        val distance:     Double)

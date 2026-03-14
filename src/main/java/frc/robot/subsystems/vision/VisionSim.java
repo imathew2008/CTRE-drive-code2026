@@ -12,17 +12,16 @@ public class VisionSim {
     private final PhotonCamera cameraOne;
     private final PhotonCamera cameraTwo;
     private final VisionSystemSim visionSim;
-    private final PhotonCameraSim cameraSimOne;
-    private final PhotonCameraSim cameraSimTwo;
+
     public VisionSim(String cameraNameOne, String cameraNameTwo, Transform3d robotToCameraOne, Transform3d robotToCameraTwo, AprilTagFieldLayout tags) {
         cameraOne = new PhotonCamera(cameraNameOne);
         cameraTwo = new  PhotonCamera(cameraNameTwo);
         visionSim = new VisionSystemSim("photonvision");
         visionSim.addAprilTags(tags);
         SimCameraProperties cameraProperties = new SimCameraProperties();
-        
-        cameraSimOne = new PhotonCameraSim(cameraOne, cameraProperties);
-        cameraSimTwo = new PhotonCameraSim(cameraTwo, cameraProperties);
+
+        PhotonCameraSim cameraSimOne = new PhotonCameraSim(cameraOne, cameraProperties);
+        PhotonCameraSim cameraSimTwo = new PhotonCameraSim(cameraTwo, cameraProperties);
         visionSim.addCamera(cameraSimOne, robotToCameraOne);
         visionSim.addCamera(cameraSimTwo, robotToCameraTwo);
     }

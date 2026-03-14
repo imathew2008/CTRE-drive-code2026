@@ -4,7 +4,7 @@ import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform3d;
-import org.photonvision.EstimatedRobotPose;
+import org.jetbrains.annotations.NotNull;
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
 import org.photonvision.targeting.PhotonPipelineResult;
@@ -72,18 +72,28 @@ public class LimelightMeasurementSource
         if (v1 != null && v2 == null)
             return Optional.of(v1);
 
-        if (v2 != null && v1 == null)
+        if (v1 == null)
             return Optional.of(v2);
-        
+
+        Pose2d fusedPose = getPose2d(v1, v2);
+
+        double fusedTimestamp =
+                Math.max(v1.timestampSeconds(), v2.timestampSeconds());
+
+        return Optional.of(new VisionUpdate(fusedPose, fusedTimestamp));
+    }
+
+    @NotNull
+    private static Pose2d getPose2d(VisionUpdate v1, VisionUpdate v2) {
         Pose2d p1 = v1.pose();
         Pose2d p2 = v2.pose();
-        
+
         double w1 = 0.5;
         double w2 = 0.5;
-        
+
         double x = w1 * p1.getX() + w2 * p2.getX();
         double y = w1 * p1.getY() + w2 * p2.getY();
-        
+
         double cos =
                 w1 * Math.cos(p1.getRotation().getRadians()) +
                         w2 * Math.cos(p2.getRotation().getRadians());
@@ -94,12 +104,7 @@ public class LimelightMeasurementSource
 
         double theta = Math.atan2(sin, cos);
 
-        Pose2d fusedPose = new Pose2d(x, y, new Rotation2d(theta));
-
-        double fusedTimestamp =
-                Math.max(v1.timestampSeconds(), v2.timestampSeconds());
-
-        return Optional.of(new VisionUpdate(fusedPose, fusedTimestamp));
+        return new Pose2d(x, y, new Rotation2d(theta));
     }
-    
+
 }
