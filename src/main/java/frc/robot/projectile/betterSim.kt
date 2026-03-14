@@ -4,6 +4,13 @@ import kotlin.math.*
 import frc.robot.Vector3
 import frc.robot.SimResult
 import frc.robot.ResultsToPrint
+import frc.robot.angle
+import frc.robot.ballExitFromTwoWheels
+import frc.robot.crossXPlane
+import frc.robot.dragForce
+import frc.robot.magnusForce
+import frc.robot.possibleVelocity
+import frc.robot.wrapAngle
 
 
 //stuff to change
@@ -29,13 +36,14 @@ const val topRadi    = 0.1016 / 2.0
 const val bottomRadi = 0.0508 / 2.0
 val p0               = Vector3(0.0, 0.0, 0.0)
 val exitSpecs        = ballExitFromTwoWheels(
-    topWheelRadius    = topRadi,
+    topWheelRadius = topRadi,
     bottomWheelRadius = bottomRadi,
-    topRpm            = topRpm,
-    bottomRpm         = bottomRpm,
-    ballRadius        = ballRadius,
-    vScale            = 0.85,
-    spinScale         = 0.7)
+    topRpm = topRpm,
+    bottomRpm = bottomRpm,
+    ballRadius = ballRadius,
+    vScale = 0.85,
+    spinScale = 0.7
+)
 
 val v0ball = Vector3(cos(hoodAngle0) * exitSpecs.vExit, sin(hoodAngle0)
         * exitSpecs.vExit, 0.0) + v0robot

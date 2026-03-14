@@ -21,8 +21,8 @@ public class LimelightMeasurementSource
     
     public record VisionUpdate(Pose2d pose, double timestampSeconds) {}
     
-    public LimelightMeasurementSource(PhotonCamera cameraOne, PhotonCamera cameraTwo, AprilTagFieldLayout tags, Transform3d robotToCameraOne, Transform3d robotToCameraTwo)
-    {
+    public LimelightMeasurementSource(PhotonCamera cameraOne, PhotonCamera cameraTwo, AprilTagFieldLayout tags,
+                                      Transform3d robotToCameraOne, Transform3d robotToCameraTwo) {
         this.cameraOne = cameraOne;
         this.cameraTwo = cameraTwo;
         this.poseEstimatorOne = new PhotonPoseEstimator(

@@ -1,11 +1,10 @@
-package frc.robot.projectile
+package frc.robot
 
 //import androidx.compose.ui.geometry.Offset
 //import androidx.compose.ui.graphics.Color
 //import androidx.compose.ui.graphics.drawscope.DrawScope
-import kotlin.math.atan2
-import frc.robot.Vector3
-import frc.robot.BallExit
+import frc.robot.projectile.*
+import kotlin.math.*
 
 /**
  * Returns the angle of a vector in radians
@@ -145,88 +144,35 @@ fun possibleVelocity(v: Vector3): Boolean {
     if (v.norm > maxSpeed) return false
     return true
 }
-///**
-// * Projects a 3D world position into a centered top-down XZ inset view.
-// *
-// * x is mapped to screen +x, z is mapped to screen -y (so +z appears upward).
-// * Centering is done relative to (goalX, goalZ).
-// *
-// * @param p world position
-// * @param goalX x center reference (world units)
-// * @param goalZ z center reference (world units)
-// * @param origin screen-space origin of the inset
-// * @param scale pixels per world unit
-// * @return screen-space Offset for drawing
-// */
-//fun topDownProjectXZCentered(
-//    p:      Vector3,
-//    goalX:  Double,
-//    goalZ:  Double,
-//    origin: Offset,
-//    scale:  Float
-//): Offset {
-//    val dx = (p.x - goalX).toFloat()
-//    val dz = (p.z - goalZ).toFloat()
-//
-//    return Offset(
-//        origin.x + dx * scale,
-//        origin.y - dz * scale
-//    )
-//}
-///**
-// * Draws a thick line segment representing part of a trajectory.
-// * @param color line color
-// * @param start start point in screen space
-// * @param end end point in screen space
-// */
-//fun DrawScope.trajectoryLine(color: Color, start: Offset, end: Offset) {
-//    drawLine(color = color, start = start, end = end, strokeWidth = 4f)
-//}
-///**
-// * Converts world XY coordinates into screen space for a 2D side view.
-// *
-// * x is mapped to screen +x, y is mapped to screen -y (so +y appears upward).
-// *
-// * @param p world position
-// * @param origin screen-space origin
-// * @param scale pixels per world unit
-// * @return screen-space Offset for drawing
-// */
-//fun worldToScreen(p: Vector3, origin: Offset, scale: Float): Offset =
-//    Offset(origin.x + p.x.toFloat() * scale, origin.y - p.y.toFloat() * scale)
-///**
-// * Convenience wrapper for projecting into the top-down inset view using a shared goal.x.
-// *
-// * @param p world position
-// * @param goalZ z center reference (world units)
-// * @param insetCenter screen-space origin of the inset
-// * @param scaleInset pixels per world unit (inset)
-// * @return screen-space Offset for drawing in the inset
-// */
-//fun projTop(p: Vector3, goalZ: Double, insetCenter: Offset, scaleInset: Float): Offset =
-//    topDownProjectXZCentered(p, goal.x, goalZ, insetCenter, scaleInset)
-///**
-// * Draws a connected polyline trajectory from a list of logged simulation results.
-// *
-// * If the list is null or has fewer than 2 points, nothing is drawn.
-// *
-// * @param list list of results containing positions to draw
-// * @param color line color
-// * @param origin screen-space origin for projection
-// * @param scale pixels per world unit
-// */
-//fun DrawScope.drawTrajectory(
-//    list:   List<ResultsToPrint>?,
-//    color:  Color,
-//    origin: Offset,
-//    scale:  Float
-//) {
-//    list?.let {
-//        if (it.size < 2) return
-//        for (i in 1 until it.size) {
-//            val a = worldToScreen(it[i - 1].pos, origin, scale)
-//            val b = worldToScreen(it[i].pos, origin, scale)
-//            trajectoryLine(color, a, b)
-//        }
-//    }
-//}
+
+fun applyCircularDeadband(x: Double, y: Double, deadband: Double): DoubleArray {
+    val mag = sqrt(x * x + y * y)
+    if (mag < deadband) {
+        return doubleArrayOf(0.0, 0.0)
+    }
+    val scaledMag = (mag - deadband) / (1.0 - deadband)
+    val scale = scaledMag / mag
+
+    return doubleArrayOf(
+        x * scale,
+        y * scale
+    )
+}
+
+fun applyDeadband1D(value: Double, deadband: Double): Double {
+    if (abs(value) <= deadband) {
+        return 0.0
+    }
+    val scaled = (abs(value) - deadband) / (1.0 - deadband)
+    return scaled.withSign(value)
+}
+
+fun squareKeepSign(x: Double): Double {
+    return (x * x).withSign(x)
+}
+
+fun squareVectorKeepDirection(x: Double, y: Double): DoubleArray {
+    val mag = hypot(x, y)
+    if (mag <= 1e-9) return doubleArrayOf(0.0, 0.0)
+    return doubleArrayOf(x * mag, y * mag)
+}

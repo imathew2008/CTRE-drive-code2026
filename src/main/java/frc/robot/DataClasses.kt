@@ -93,3 +93,10 @@ data class SimResult(
         val downward:     Boolean,
         val phiError:     Double,
         val distance:     Double)
+
+enum class FieldZone {
+    BLUE,
+    TRANSITION,
+    NEUTRAL,
+    RED
+}

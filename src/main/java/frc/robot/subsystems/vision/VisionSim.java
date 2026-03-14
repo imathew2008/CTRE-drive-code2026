@@ -13,7 +13,8 @@ public class VisionSim {
     private final PhotonCamera cameraTwo;
     private final VisionSystemSim visionSim;
 
-    public VisionSim(String cameraNameOne, String cameraNameTwo, Transform3d robotToCameraOne, Transform3d robotToCameraTwo, AprilTagFieldLayout tags) {
+    public VisionSim(String cameraNameOne, String cameraNameTwo, Transform3d robotToCameraOne,
+                     Transform3d robotToCameraTwo, AprilTagFieldLayout tags) {
         cameraOne = new PhotonCamera(cameraNameOne);
         cameraTwo = new  PhotonCamera(cameraNameTwo);
         visionSim = new VisionSystemSim("photonvision");

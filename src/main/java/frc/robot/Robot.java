@@ -24,7 +24,6 @@ import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnField;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
 import static frc.robot.projectile.BetterSimKt.speedOptimizer;
-import frc.robot.projectile.*;
 
 public class Robot extends TimedRobot {
     private Translation2d robotTranslation;
