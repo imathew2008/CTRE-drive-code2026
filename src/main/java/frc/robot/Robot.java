@@ -6,6 +6,7 @@ package frc.robot;
 
 import java.util.HashSet;
 import java.util.Set;
+
 import kotlin.Pair;
 import static edu.wpi.first.units.Units.*;
 import edu.wpi.first.units.measure.Angle;
@@ -23,6 +24,8 @@ import org.ironmaple.simulation.gamepieces.GamePiece;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnField;
 import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
+
+import static frc.robot.DataClassesKt.zoneName;
 import static frc.robot.projectile.BetterSimKt.speedOptimizer;
 
 public class Robot extends TimedRobot {
@@ -34,6 +37,10 @@ public class Robot extends TimedRobot {
 
     private boolean lastshot = false;
     private final Set<GamePieceProjectile> fuelProjectile = new HashSet<>();
+    private final StringPublisher currentZone =
+            NetworkTableInstance.getDefault()
+                    .getStringTopic("CurrentZone")
+                    .publish();
     StructArrayPublisher<Pose3d> fuelPublisher = NetworkTableInstance.getDefault()
             .getStructArrayTopic("MyPoseArray", Pose3d.struct)
             .publish();
@@ -54,9 +61,9 @@ public class Robot extends TimedRobot {
     @Override
     public void robotInit() {
         robotTranslation = new Translation2d();
-        robotRotation = new Rotation2d();
-        robotSpeeds = new ChassisSpeeds();
-        robotContainer = new RobotContainer();
+        robotRotation    = new Rotation2d();
+        robotSpeeds      = new ChassisSpeeds();
+        robotContainer   = new RobotContainer();
 
         SimulatedArena.getInstance().addGamePiece(new RebuiltFuelOnField(new Translation2d(10, 3)));
     }
@@ -97,8 +104,7 @@ public class Robot extends TimedRobot {
     public void teleopExit() {}
 
     @Override
-    public void testInit() {CommandScheduler.getInstance().cancelAll();
-    }
+    public void testInit() { CommandScheduler.getInstance().cancelAll(); }
 
     @Override
     public void testPeriodic() {}
@@ -109,6 +115,9 @@ public class Robot extends TimedRobot {
     @Override
     public void simulationPeriodic() {
         Pose2d realPose = robotContainer.drivetrain.getState().Pose;
+
+        int zone = robotContainer.stableZoneLookup.getStableZone(realPose);
+        currentZone.set(zoneName(zone));
 
         robotContainer.visionSim.updateSim(realPose);
         robotContainer.visionEst.update();
@@ -143,25 +152,16 @@ public class Robot extends TimedRobot {
                             (i, v, r) -> null
                     );
 
-            LinearVelocity bestSpeed =
-                    MetersPerSecond.of(result.getSecond().getResults().get(0).getVel().getNorm());
-            Angle bestAngle =
-                    Radians.of(HelperFunctionsKt.angle(result.getSecond().getResults().get(0).getVel()));
-            LinearVelocity initialSpeed =
-                    MetersPerSecond.of(
-                            result.getSecond().getResults()
+            LinearVelocity bestSpeed = MetersPerSecond.of(result.getSecond().getResults().get(0).getVel().getNorm());
+            Angle bestAngle = Radians.of(HelperFunctionsKt.angle(result.getSecond().getResults().get(0).getVel()));
+            LinearVelocity initialSpeed = MetersPerSecond.of(result.getSecond().getResults()
                                     .get(result.getSecond().getResults().size() - 1)
                                     .getVel()
-                                    .getNorm()
-                    );
-            Angle initalAngle =
-                    Radians.of(
-                            HelperFunctionsKt.angle(
-                                    result.getSecond().getResults()
-                                            .get(result.getSecond().getResults().size() - 1)
-                                            .getVel()
-                            )
-                    );
+                                    .getNorm());
+
+            Angle initalAngle = Radians.of(HelperFunctionsKt.angle(
+                                            result.getSecond().getResults()
+                                            .get(result.getSecond().getResults().size() - 1).getVel()));
 
             System.out.println("Best Speed: " + bestSpeed);
             System.out.println("Best Angle: " + bestAngle.in(Degrees));

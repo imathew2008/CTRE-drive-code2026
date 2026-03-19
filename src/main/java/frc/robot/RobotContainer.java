@@ -13,26 +13,34 @@ import frc.robot.subsystems.questNav.QuestNavSubsystem;
 import frc.robot.subsystems.swerve.CommandSwerveDrivetrain;
 import frc.robot.subsystems.vision.VisionSim;
 import frc.robot.subsystems.vision.LimelightMeasurementSource;
-import frc.robot.FieldZone;
-import frc.robot.BumpCorrection;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
-
+import frc.robot.zones.StableZoneLookup;
+import frc.robot.zones.ZoneLookup;
 import java.io.File;
-
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.HelperFunctionsKt.*;
 
 public class RobotContainer {
+    private final ZoneLookup zoneLookup =
+            new ZoneLookup(
+                    FilteredFieldMap.WIDTH,
+                    FilteredFieldMap.HEIGHT,
+                    FilteredFieldMap.CELL_SIZE_INCHES,
+                    FilteredFieldMap.INSTANCE.getZONES()
+            );
+
+    final StableZoneLookup stableZoneLookup = new StableZoneLookup(zoneLookup);
+
     private static final double deadBand = 0.05;
-//    private final BumpCorrection bumpCorrection = new BumpCorrection(7.0, 9.0);
-//    private final PIDController bumpHeadingPid = new PIDController(8.0, 0.0, 0.35);
-//
-//    private Rotation2d lastBumpTargetHeading = new Rotation2d();
-//    private boolean lastInBump = false;
+    private final BumpCorrection bumpCorrection = new BumpCorrection();
+    private final PIDController bumpHeadingPid = new PIDController(10.0, 0.0, 0.35);
+
+    private Rotation2d lastBumpTargetHeading = new Rotation2d();
+    private boolean lastInBump = false;
 
    public final VisionEstimation visionEst;
     public final VisionSim visionSim;
@@ -63,9 +71,8 @@ public class RobotContainer {
     public RobotContainer() {
         configureBindings();
 
-//        bumpHeadingPid.enableContinuousInput(-Math.PI, Math.PI);
+        bumpHeadingPid.enableContinuousInput(-Math.PI, Math.PI);
 
-        // Camera pose relative to robot (fill in real values later)
         Transform3d robotToCameraOne = new Transform3d(
                 new Translation3d(-0.265, -0.366, 0.502),
                 new Rotation3d(0.0, 0.0, Math.toRadians(45.0))
@@ -107,61 +114,6 @@ public class RobotContainer {
     public boolean shooting() { return joystick.a().getAsBoolean(); }
 
     private void configureBindings() {
-//        drivetrain.setDefaultCommand(
-//                drivetrain.applyRequest(() -> {
-//                    Pose2d currentPose = drivetrain.getState().Pose;
-//
-//                    Translation2d translation = new Translation2d(
-//                            -joystick.getLeftY() * MaxSpeed,
-//                            -joystick.getLeftX() * MaxSpeed
-//                    );
-//
-//                    boolean inBump = bumpCorrection.isInBump(currentPose.getX());
-//
-//                    if (inBump && translation.getNorm() > 10.0) {
-//                        translation = translation.times(10.0 / translation.getNorm());
-//                    }
-//
-//                    double vx = translation.getX();
-//                    double vy = translation.getY();
-//
-//                    double omega;
-//                    if (inBump) {
-//                        Rotation2d targetHeading = bumpCorrection.getTargetHeading(
-//                                currentPose.getX(),
-//                                currentPose.getRotation()
-//                        );
-//
-//                        double dt = 0.02;
-//
-//                        if (!lastInBump) {
-//                            lastBumpTargetHeading = targetHeading;
-//                        }
-//
-//                        double targetAngularVelocity = MathUtil.angleModulus(
-//                                targetHeading.getRadians() - lastBumpTargetHeading.getRadians()
-//                        ) / dt;
-//
-//                        double pidOmega = bumpHeadingPid.calculate(
-//                                currentPose.getRotation().getRadians(),
-//                                targetHeading.getRadians()
-//                        );
-//
-//                        omega = targetAngularVelocity + pidOmega;
-//                        omega = MathUtil.clamp(omega, -MaxAngularRate, MaxAngularRate);
-//
-//                        lastBumpTargetHeading = targetHeading;
-//                    } else {
-//                        omega = -joystick.getRightX() * MaxAngularRate;
-//                    }
-//
-//                    lastInBump = inBump;
-//
-//                    return drive.withVelocityX(vx)
-//                            .withVelocityY(vy)
-//                            .withRotationalRate(omega);
-//                })
-//        );
         drivetrain.setDefaultCommand(
                 drivetrain.applyRequest(() -> {
                     double x   = -joystick.getLeftY();
@@ -170,13 +122,79 @@ public class RobotContainer {
 
                     double[] xy  = applyCircularDeadband(x, y, deadBand);
                     xy           = squareVectorKeepDirection(xy[0], xy[1]);
-                    double omega = squareKeepSign(applyDeadband1D(rot, deadBand));
+
+                    Pose2d currentPose = drivetrain.getState().Pose;
+
+                    Translation2d translation = new Translation2d(
+                            xy[0] * MaxSpeed,
+                            xy[1] * MaxSpeed
+                    );
+
+                    int currentZone = stableZoneLookup.getStableZone(currentPose);
+                    boolean inBump = BumpZones.isBumpZone(currentZone);
+
+                    if (inBump && translation.getNorm() > MaxSpeed * 0.5) {
+                        translation = translation.times(MaxSpeed * 0.5 / translation.getNorm());
+                    }
+
+                    double vx = translation.getX();
+                    double vy = translation.getY();
+
+                    double omega;
+
+                    if (inBump) {
+                        double dt = 0.02;
+                        double preferredYSign = Math.signum(vy);
+
+                        Rotation2d targetHeading = bumpCorrection.getTargetHeading(
+                                currentZone,
+                                currentPose.getRotation(),
+                                preferredYSign
+                        );
+
+                        if (!lastInBump) {
+                            lastBumpTargetHeading = targetHeading;
+                            bumpHeadingPid.reset();
+                        }
+
+                        double targetAngularVelocity = MathUtil.angleModulus(
+                                        targetHeading.getRadians() -
+                                                lastBumpTargetHeading.getRadians()) / dt;
+
+                        double pidOmega = bumpHeadingPid.calculate(currentPose.getRotation().getRadians(),
+                                        targetHeading.getRadians());
+
+                        omega = targetAngularVelocity + pidOmega;
+                        omega = MathUtil.clamp(omega, -MaxAngularRate, MaxAngularRate);
+
+                        lastBumpTargetHeading = targetHeading;
+                    } else {
+                        omega = squareKeepSign(applyDeadband1D(rot, deadBand)) * MaxAngularRate;
+                    }
+
+                    lastInBump = inBump;
 
                     return drive
-                            .withVelocityX(xy[0] * MaxSpeed)
-                            .withVelocityY(xy[1] * MaxSpeed)
-                            .withRotationalRate(omega * MaxAngularRate);
-                }));
+                            .withVelocityX(vx)
+                            .withVelocityY(vy)
+                            .withRotationalRate(omega);
+                })
+        );
+//        drivetrain.setDefaultCommand(
+//                drivetrain.applyRequest(() -> {
+//                    double x   = -joystick.getLeftY();
+//                    double y   = -joystick.getLeftX();
+//                    double rot = -joystick.getRightX();
+//
+//                    double[] xy  = applyCircularDeadband(x, y, deadBand);
+//                    xy           = squareVectorKeepDirection(xy[0], xy[1]);
+//                    double omega = squareKeepSign(applyDeadband1D(rot, deadBand));
+//
+//                    return drive
+//                            .withVelocityX(xy[0] * MaxSpeed)
+//                            .withVelocityY(xy[1] * MaxSpeed)
+//                            .withRotationalRate(omega * MaxAngularRate);
+//                }));
 
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
         joystick.b()

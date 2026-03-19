@@ -1,8 +1,4 @@
 package frc.robot
-
-//import androidx.compose.ui.geometry.Offset
-//import androidx.compose.ui.graphics.Color
-//import androidx.compose.ui.graphics.drawscope.DrawScope
 import frc.robot.projectile.*
 import kotlin.math.*
 
@@ -175,4 +171,21 @@ fun squareVectorKeepDirection(x: Double, y: Double): DoubleArray {
     val mag = hypot(x, y)
     if (mag <= 1e-9) return doubleArrayOf(0.0, 0.0)
     return doubleArrayOf(x * mag, y * mag)
+}
+
+fun getSpeed(speed: Double): Double {
+    if(speed >= 8.0) {
+        return 8.0
+    }
+    return speed
+}
+
+fun colorToZone(rgb: Int): Int {
+    return when (rgb and 0xFFFFFF) {
+        0x2F6FFF -> 1
+        0x909090 -> 2
+        0xFF4A4A -> 3
+        0x000000 -> 0
+        else -> 0
+    }
 }
