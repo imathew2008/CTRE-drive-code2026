@@ -13,14 +13,15 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.subsystems.IntakeConstants;
 import frc.robot.generated.TunerConstants;
-import frc.robot.subsystems.ShooterSubsystem;
+import frc.robot.subsystems.projectile.Vector3;
+import frc.robot.subsystems.shooter.ShooterSubsystem;
 import frc.robot.subsystems.drive.CommandSwerveDrivetrain;
 import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.IndexSubsystem;
 
 public class RobotContainer {
     private static final double deadBand = 0.05;
-    private static final double TRIGGER_THRESHOLD = 0.3;
+    private static final double triggerThreshold = 0.3;
 
     private final double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     private final double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
@@ -29,6 +30,8 @@ public class RobotContainer {
             .withDeadband(0.0)
             .withRotationalDeadband(0.0)
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+
+    private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
     private final CommandXboxController driverController      = new CommandXboxController(0);
@@ -72,11 +75,27 @@ public class RobotContainer {
         configureBindings();
     }
 
+    private Vector3 getCurrentShooterPosition() {
+        var pose = drivetrain.getState().Pose;
+
+        double shooterOffsetX = 0.0;
+        double shooterOffsetY = 0.0;
+        double shooterHeightMeters = 0.4318;
+
+        double cos = pose.getRotation().getCos();
+        double sin = pose.getRotation().getSin();
+
+        double shooterX = pose.getX() + shooterOffsetX * cos - shooterOffsetY * sin;
+        double shooterZ = pose.getY() + shooterOffsetX * sin + shooterOffsetY * cos;
+
+        return new Vector3(shooterX, shooterHeightMeters, shooterZ);
+    }
+
     private void configureBindings() {
         drivetrain.setDefaultCommand(
                 drivetrain.applyRequest(() -> {
-                    double x = -driverController.getLeftY();
-                    double y = -driverController.getLeftX();
+                    double x   = -driverController.getLeftY();
+                    double y   = -driverController.getLeftX();
                     double rot = -driverController.getRightX();
 
                     double[] xy = applyCircularDeadband(x, y, deadBand);
@@ -94,69 +113,102 @@ public class RobotContainer {
                 drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
-        driverController.rightTrigger(TRIGGER_THRESHOLD)
-                .toggleOnTrue(
-                        Commands.startEnd(
-                                () -> intake.setGoalPosition(IntakeConstants.INTAKE_EXTENSION_ROT),
-                                () -> intake.setGoalPosition(IntakeConstants.STOW_EXTENSION_ROT),
-                                intake
-                        )
-                );
+        driverController.rightTrigger().whileTrue(
+                drivetrain.applyRequest(() -> brake));
 
-        driverController.leftTrigger(TRIGGER_THRESHOLD).whileTrue(
+        manipulatorController.rightTrigger(triggerThreshold).whileTrue(
                 Commands.runEnd(
-                        () -> intake.setRollerVoltage(IntakeConstants.ROLLER_INTAKE_VOLTS),
-                        intake::stopRollers,
-                        intake
+                        () -> {
+                            indexer.runIndexer();
+                            indexer.runFeeder();
+                        },
+                        () -> {
+                            indexer.stopIndexer();
+                            indexer.stopFeeder();
+                        }
                 )
         );
 
-        manipulatorController.leftTrigger(TRIGGER_THRESHOLD).whileTrue(
-                Commands.runEnd(
-                        indexer::runFeeder,
-                        indexer::stopFeeder,
-                        indexer
-                )
-        );
-
-        manipulatorController.rightTrigger(TRIGGER_THRESHOLD).whileTrue(
-                Commands.runEnd(
-                        indexer::runIndexer,
-                        indexer::stopIndexer,
-                        indexer
-                )
-        );
-
-        manipulatorController.a().whileTrue(
-                Commands.runEnd(
-                        () -> intake.setRollerVoltage(IntakeConstants.ROLLER_OUTTAKE_VOLTS),
-                        intake::stopRollers,
-                        intake
-                )
-        );
-
-        manipulatorController.b().whileTrue(
-                Commands.parallel(
-                        Commands.runEnd(
-                                indexer::runIndexerReverse,
-                                indexer::stopIndexer,
-                                indexer
-                        ),
-                        Commands.runEnd(
-                                indexer::runFeederReverse,
-                                indexer::stopFeeder,
-                                indexer
-                        )
-                )
-        );
-
-        manipulatorController.leftTrigger(TRIGGER_THRESHOLD).whileTrue(
-                Commands.runEnd(
-                        shooter::runFlywheels,
-                        shooter::stopFlywheels,
-                        shooter
-                )
-        );
+//        driverController.rightTrigger(triggerThreshold).whileTrue(
+//                Commands.run(
+//                        intake::intakeActuation,
+//                        intake
+//                )
+//        );
+//
+//        driverController.leftTrigger(triggerThreshold).whileTrue(
+//                Commands.runEnd(
+//                        () -> intake.setRollerVoltage(IntakeConstants.ROLLER_INTAKE_VOLTS),
+//                        intake::stopRollers,
+//                        intake
+//                )
+//        );
+//
+//        manipulatorController.leftTrigger(triggerThreshold).whileTrue(
+//                Commands.runEnd(
+//                        () -> shooter.updateShotFromPosition(getCurrentShooterPosition()),
+//                        shooter::stopAimingAndSpinning,
+//                        shooter
+//                )
+//        );
+//
+//        manipulatorController.leftTrigger(triggerThreshold).whileTrue(
+//                Commands.runEnd(
+//                        () -> shooter.setFlywheelSpeeds(3830.2481, 3830.2481),
+//                        shooter::stopAiming,
+//                        shooter
+//                )
+//        );
+//
+//        manipulatorController.rightTrigger(triggerThreshold).whileTrue(
+//                Commands.runEnd(
+//                        () -> {
+//                            if (shooter.readyToFire()) {
+//                                indexer.runIndexer();
+//                                indexer.runFeeder();
+//                            } else {
+//                                indexer.stopIndexer();
+//                                indexer.stopFeeder();
+//                            }
+//                        },
+//                        () -> {
+//                            indexer.stopIndexer();
+//                            indexer.stopFeeder();
+//                        },
+//                        indexer
+//                )
+//        );
+//
+//        manipulatorController.a().whileTrue(
+//                Commands.runEnd(
+//                        () -> intake.setRollerVoltage(IntakeConstants.ROLLER_OUTTAKE_VOLTS),
+//                        intake::stopRollers,
+//                        intake
+//                )
+//        );
+//
+//        manipulatorController.b().whileTrue(
+//                Commands.parallel(
+//                        Commands.runEnd(
+//                                indexer::runIndexerReverse,
+//                                indexer::stopIndexer,
+//                                indexer
+//                        ),
+//                        Commands.runEnd(
+//                                indexer::runFeederReverse,
+//                                indexer::stopFeeder,
+//                                indexer
+//                        )
+//                )
+//        );
+//
+//        manipulatorController.leftTrigger(triggerThreshold).whileTrue(
+//                Commands.runEnd(
+//                        shooter::runFlywheels,
+//                        shooter::stopFlywheels,
+//                        shooter
+//                )
+//        );
 
         driverController.back().and(driverController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         driverController.back().and(driverController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
@@ -169,6 +221,28 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
+//        Commands.run(() -> shooter.setFlywheelSpeeds(3830.2481, 3830.2481))
+//                .withDeadline(Commands.waitUntil(shooter::flywheelsAtSpeed).andThen(Commands.run(() -> {
+//                    indexer.runIndexer();
+//                    indexer.runFeeder();
+//                }).withTimeout(5))).andThen(()-> Commands.runOnce(() -> {
+//                    indexer.stopFeeder();
+//                    indexer.stopIndexer();
+//                }));
+//        if(shooter.flywheelsAtSpeed()) {
+//            indexer.runIndexer();
+//            indexer.runFeeder();
+//        }
         return null;
     }
+
+//    Command autoCommand() {
+//        Commands.sequence(
+//        shooter.setFlywheelSpeeds(3830.2481, 3830.2481);
+//        if(shooter.flywheelsAtSpeed()) {
+//            indexer.runIndexer();
+//            indexer.runFeeder();
+//        }
+//        shooter.
+//        )
 }

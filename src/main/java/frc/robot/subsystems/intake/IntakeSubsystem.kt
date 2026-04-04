@@ -1,10 +1,8 @@
 package frc.robot.subsystems.intake
 
 import com.ctre.phoenix6.configs.MotorOutputConfigs
-import com.ctre.phoenix6.configs.Slot0Configs
 import com.ctre.phoenix6.configs.TalonFXConfiguration
-import com.ctre.phoenix6.controls.Follower
-import com.ctre.phoenix6.controls.MotionMagicVoltage
+import com.ctre.phoenix6.controls.TorqueCurrentFOC
 import com.ctre.phoenix6.controls.VoltageOut
 import com.ctre.phoenix6.hardware.TalonFX
 import com.ctre.phoenix6.signals.InvertedValue
@@ -20,20 +18,23 @@ class IntakeSubsystem : SubsystemBase() {
     private val leftRollerMotor = TalonFX(IntakeConstants.LEFT_ROLLER_MOTOR_ID)
     private val rightRollerMotor = TalonFX(IntakeConstants.RIGHT_ROLLER_MOTOR_ID)
 
-    private val motionMagicRequest = MotionMagicVoltage(0.0).withSlot(0)
+    private val extensionRequest = TorqueCurrentFOC(0.0)
     private val leftRollerRequest = VoltageOut(0.0)
     private val rightRollerRequest = VoltageOut(0.0)
 
     private var goalPositionRot = IntakeConstants.STOW_EXTENSION_ROT
+    private var extensionClosedLoopEnabled = true
+
+    private var extensionAmps = 3.0
+    private val extensionMaxAbsCurrent = 40.0
+    var extended = false
 
     init {
         configExtensionMotor()
         configRollerMotors()
-
-        // Only keep this if robot boots with intake fully stowed
         extensionMotor.setPosition(IntakeConstants.STOW_EXTENSION_ROT)
         goalPositionRot = IntakeConstants.STOW_EXTENSION_ROT
-        extensionMotor.setControl(motionMagicRequest.withPosition(goalPositionRot))
+        var extended = false
     }
 
     private fun configExtensionMotor() {
@@ -42,18 +43,6 @@ class IntakeSubsystem : SubsystemBase() {
         cfg.MotorOutput = MotorOutputConfigs()
             .withNeutralMode(NeutralModeValue.Brake)
             .withInverted(InvertedValue.CounterClockwise_Positive)
-
-        cfg.Slot0 = Slot0Configs()
-            .withKS(IntakeConstants.kS)
-            .withKV(IntakeConstants.kV)
-            .withKA(IntakeConstants.kA)
-            .withKP(IntakeConstants.kP)
-            .withKI(IntakeConstants.kI)
-            .withKD(IntakeConstants.kD)
-
-        cfg.MotionMagic.MotionMagicCruiseVelocity = IntakeConstants.CRUISE_VELOCITY_RPS
-        cfg.MotionMagic.MotionMagicAcceleration = IntakeConstants.ACCELERATION_RPS_PER_SEC
-        cfg.MotionMagic.MotionMagicJerk = IntakeConstants.JERK_RPS_PER_SEC2
 
         extensionMotor.configurator.apply(cfg)
     }
@@ -67,7 +56,6 @@ class IntakeSubsystem : SubsystemBase() {
         val rightCfg = TalonFXConfiguration()
         rightCfg.MotorOutput = MotorOutputConfigs()
             .withNeutralMode(NeutralModeValue.Brake)
-            // flip this if the two rollers fight each other
             .withInverted(InvertedValue.Clockwise_Positive)
 
         leftRollerMotor.configurator.apply(leftCfg)
@@ -77,11 +65,15 @@ class IntakeSubsystem : SubsystemBase() {
     fun zeroAtStow() {
         extensionMotor.setPosition(IntakeConstants.STOW_EXTENSION_ROT)
         goalPositionRot = IntakeConstants.STOW_EXTENSION_ROT
-        extensionMotor.setControl(motionMagicRequest.withPosition(goalPositionRot))
+        extensionClosedLoopEnabled = true
     }
 
     fun getExtensionPositionRot(): Double {
         return extensionMotor.position.valueAsDouble
+    }
+
+    fun getExtensionVelocityRps(): Double {
+        return extensionMotor.velocity.valueAsDouble
     }
 
     fun setGoalPosition(positionRot: Double) {
@@ -90,9 +82,7 @@ class IntakeSubsystem : SubsystemBase() {
             IntakeConstants.MIN_EXTENSION_ROT,
             IntakeConstants.MAX_EXTENSION_ROT
         )
-        extensionMotor.setControl(
-            motionMagicRequest.withPosition(goalPositionRot)
-        )
+        extensionClosedLoopEnabled = true
     }
 
     fun deploy() = setGoalPosition(IntakeConstants.INTAKE_EXTENSION_ROT)
@@ -102,6 +92,17 @@ class IntakeSubsystem : SubsystemBase() {
     fun atGoal(): Boolean {
         return abs(getExtensionPositionRot() - goalPositionRot) <
                 IntakeConstants.POSITION_TOLERANCE_ROT
+    }
+
+    fun setExtensionCurrent(amps: Double) {
+        extensionClosedLoopEnabled = false
+        val clamped = MathUtil.clamp(amps, -extensionMaxAbsCurrent, extensionMaxAbsCurrent)
+        extensionMotor.setControl(extensionRequest.withOutput(clamped))
+    }
+
+    fun stopExtension() {
+        extensionClosedLoopEnabled = false
+        extensionMotor.setControl(extensionRequest.withOutput(0.0))
     }
 
     fun setRollerVoltage(volts: Double) {
@@ -114,9 +115,38 @@ class IntakeSubsystem : SubsystemBase() {
         rightRollerMotor.setControl(rightRollerRequest.withOutput(0.0))
     }
 
+    fun intakeActuation() {
+        if(extended) {
+            extensionAmps = -extensionAmps
+            extended = false
+        } else {
+            extensionAmps = -extensionAmps
+            extended = true
+        }
+    }
+
+    fun retractIntake() {
+        extensionMotor.setControl(extensionRequest.withOutput(-extensionAmps))
+    }
+
     override fun periodic() {
-        SmartDashboard.putNumber("Intake/GoalRot", goalPositionRot)
-        SmartDashboard.putNumber("Intake/PositionRot", getExtensionPositionRot())
-        SmartDashboard.putBoolean("Intake/AtGoal", atGoal())
+//        val positionRot = getExtensionPositionRot()
+//        val velocityRps = getExtensionVelocityRps()
+
+        extensionMotor.setControl(extensionRequest.withOutput(extensionAmps))
+
+//        if (extensionClosedLoopEnabled) {
+//            val errorRot = goalPositionRot - positionRot
+//
+//            val commandedCurrent = extensionAmps
+//
+//            SmartDashboard.putNumber("Intake/ExtensionCmdCurrentAmps", commandedCurrent)
+//        }
+//
+//        SmartDashboard.putNumber("Intake/GoalRot", goalPositionRot)
+//        SmartDashboard.putNumber("Intake/PositionRot", positionRot)
+//        SmartDashboard.putNumber("Intake/VelocityRps", velocityRps)
+//        SmartDashboard.putBoolean("Intake/AtGoal", atGoal())
+//        SmartDashboard.putBoolean("Intake/ExtensionClosedLoopEnabled", extensionClosedLoopEnabled)
     }
 }
