@@ -7,6 +7,7 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.VisionEstimation;
 import frc.robot.generated.QuestNavConstants;
@@ -43,6 +44,7 @@ public class QuestNavSubsystem extends SubsystemBase {
         return latestNoisyQuestNavPose;
     }
 
+
     @Override
     public void periodic() {
         if (RobotBase.isSimulation()) {
@@ -56,26 +58,26 @@ public class QuestNavSubsystem extends SubsystemBase {
 
             latestNoisyQuestNavPose = noisyQuestNavPose;
 
-            VisionEstimation.addPoseMeasurement(noisyQuestNavPose, getQuestNavR());
+//            VisionEstimation.addPoseMeasurement(noisyQuestNavPose, getQuestNavR());
             return;
         }
 
-        questNav.commandPeriodic();
-
-        PoseFrame[] questFrames = questNav.getAllUnreadPoseFrames();
-
-        for (PoseFrame questFrame : questFrames) {
-            if (!questFrame.isTracking()) {
-                continue;
-            }
-
-            Pose3d questPose = questFrame.questPose3d();
-            Pose3d robotPose =
-                    questPose.transformBy(QuestNavConstants.ROBOT_TO_QUEST.inverse());
-
-            latestNoisyQuestNavPose = robotPose.toPose2d();
-
-            VisionEstimation.addPoseMeasurement(robotPose.toPose2d(), getQuestNavR());
-        }
+//        SmartDashboard.putBoolean("QuestNav/Connected", questNav.isConnected());
+//        SmartDashboard.putBoolean("QuestNav/Tracking", questNav.isTracking());
+//        SmartDashboard.putNumber("QuestNav/Latency", questNav.getLatency());
+//
+//
+//        PoseFrame[] poseFrames = questNav.getAllUnreadPoseFrames();
+//
+//        Pose3d robotPose = null;
+//        if (poseFrames.length > 0) {
+//
+//            Pose3d questPose = poseFrames[poseFrames.length - 1].questPose3d();
+//            robotPose = questPose.transformBy(QuestNavConstants.ROBOT_TO_QUEST.inverse());
+//        }
+//
+//        latestNoisyQuestNavPose = robotPose.toPose2d();
+//
+//        VisionEstimation.addPoseMeasurement(robotPose.toPose2d(), getQuestNavR());
     }
 }
