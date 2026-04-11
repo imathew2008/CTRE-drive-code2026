@@ -143,7 +143,7 @@ public class VisionEstimation {
                 VecBuilder.fill(
                         0.20, // x meters
                         0.20, // y meters
-                        0.15  // theta radians
+                        1e4  // theta radians
                 )
         );
     }

@@ -6,7 +6,9 @@ package frc.robot;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Vector;
 
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.generated.QuestNavConstants;
 import frc.robot.subsystems.vision.LimelightHelpers;
@@ -56,8 +58,8 @@ public class Robot extends TimedRobot {
             .getStructArrayTopic("MyPoseArray", Pose3d.struct)
             .publish();
     StructPublisher<Pose3d> navXpos = NetworkTableInstance.getDefault().getStructTopic("NavX pos", Pose3d.struct).publish();
-//    DoublePublisher posx = NetworkTableInstance.getDefault().getDoubleTopic("pos x").publish();
-//    DoublePublisher posy = NetworkTableInstance.getDefault().getDoubleTopic("pos y").publish();
+    //    DoublePublisher posx = NetworkTableInstance.getDefault().getDoubleTopic("pos x").publish();
+    //    DoublePublisher posy = NetworkTableInstance.getDefault().getDoubleTopic("pos y").publish();
     DoublePublisher rot = NetworkTableInstance.getDefault().getDoubleTopic("rotation").publish();
     DoublePublisher realRot = NetworkTableInstance.getDefault().getDoubleTopic("realRot").publish();
     StructPublisher<Pose2d> posEst = NetworkTableInstance.getDefault().getStructTopic("PosEst", Pose2d.struct)
@@ -65,14 +67,15 @@ public class Robot extends TimedRobot {
 
     public static RobotContainer robotContainer;
 
-    public Robot() {}
+    public Robot() {
+    }
 
     @Override
     public void robotInit() {
         robotTranslation = new Translation2d();
-        robotRotation    = new Rotation2d();
-        robotSpeeds      = new ChassisSpeeds();
-        robotContainer   = new RobotContainer();
+        robotRotation = new Rotation2d();
+        robotSpeeds = new ChassisSpeeds();
+        robotContainer = new RobotContainer();
 
         SimulatedArena.getInstance().addGamePiece(new RebuiltFuelOnField(new Translation2d(10, 3)));
     }
@@ -89,20 +92,24 @@ public class Robot extends TimedRobot {
     }
 
     @Override
-    public void disabledPeriodic() {}
+    public void disabledPeriodic() {
+    }
 
     @Override
-    public void disabledExit() {}
+    public void disabledExit() {
+    }
 
     @Override
     public void autonomousInit() {
     }
 
     @Override
-    public void autonomousPeriodic() {}
+    public void autonomousPeriodic() {
+    }
 
     @Override
-    public void autonomousExit() {}
+    public void autonomousExit() {
+    }
 
     @Override
     public void teleopInit() {
@@ -112,83 +119,96 @@ public class Robot extends TimedRobot {
     }
 
     @Override
-    public void teleopPeriodic() {}
+    public void teleopPeriodic() {
+    }
 
     @Override
-    public void teleopExit() {}
+    public void teleopExit() {
+    }
 
     @Override
-    public void testInit() { CommandScheduler.getInstance().cancelAll(); }
+    public void testInit() {
+        CommandScheduler.getInstance().cancelAll();
+    }
 
     @Override
-    public void testPeriodic() {}
+    public void testPeriodic() {
+    }
 
     @Override
-    public void testExit() {}
+    public void testExit() {
+    }
 
     @Override
     public void simulationPeriodic() {
         CommandScheduler.getInstance().run();
+        questNav.commandPeriodic();
+        boolean doRejectUpdate = false;
 
-        ChassisSpeeds speeds = robotContainer.drivetrain.getState().Speeds;
-        double speed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
-        double omegaDegPerSec = Math.toDegrees(speeds.omegaRadiansPerSecond);
-
-        boolean enabled = isEnabled();
-
-        Pose2d estimatedPose = VisionEstimation.getEstimatedPose2d();
-        double currentYawDeg = estimatedPose.getRotation().getDegrees();
-
-        if (!enabled) {
+        if (!isEnabled()) {
             for (String ll : new String[]{limelight1, limelight2}) {
                 LimelightHelpers.PoseEstimate mt1 = LimelightHelpers.getBotPoseEstimate_wpiBlue(ll);
-                if (mt1.tagCount == 0) continue;
 
-                boolean reject = false;
-                if (mt1.tagCount == 1 && mt1.rawFiducials.length == 1) {
-                    if (mt1.rawFiducials[0].ambiguity > 0.7)  reject = true;
-                    if (mt1.rawFiducials[0].distToCamera > 4) reject = true;
+                if(mt1.tagCount > 0 && mt1.rawFiducials.length > 0) {
+                    if(mt1.rawFiducials[0].ambiguity > .7) {
+                        doRejectUpdate = true;
+                    }
+                    if(mt1.rawFiducials[0].distToCamera > 3) {
+                        doRejectUpdate = true;
+                    }
                 }
-                if (!reject) {
-                    VisionEstimation.addLimelightMeasurement(mt1.pose, mt1.timestampSeconds);
+                if(mt1.tagCount == 0) {
+                    doRejectUpdate = true;
+                }
+
+                if(!doRejectUpdate) {
+                    VisionEstimation.addLimelightMeasurement(
+                            mt1.pose,
+                            mt1.timestampSeconds);
                 }
             }
-        } else if (speed < megaTag2MaxSpeed) {
-            for (String ll : new String[]{limelight1, limelight2}) {
-                LimelightHelpers.SetRobotOrientation(ll, currentYawDeg, 0, 0, 0, 0, 0);
+        } else {
+        LimelightHelpers.SetRobotOrientation("limelight-one", robotContainer.drivetrain.getPigeon2()
+                .getRotation2d().getDegrees(), 0, 0, 0, 0, 0);
+        LimelightHelpers.SetRobotOrientation("limelight-two", robotContainer.drivetrain.getPigeon2()
+                .getRotation2d().getDegrees(), 0, 0, 0, 0, 0);
+        LimelightHelpers.PoseEstimate ll1 =
+                LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight-one");
+        LimelightHelpers.PoseEstimate ll2 =
+                LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight-two");
+
+        if (Math.abs(robotContainer.drivetrain.getPigeon2().getAngularVelocityXDevice().getValueAsDouble()) > 360) {
+            doRejectUpdate = true;
+        }
+        if (ll2.tagCount + ll1.tagCount < 2) {
+            doRejectUpdate = true;
+        }
+        if (!doRejectUpdate) {
+            if(ll1.tagCount > 0) {
+                VisionEstimation.addLimelightMeasurement(
+                        ll1.pose,
+                        ll1.timestampSeconds);
             }
 
-            LimelightHelpers.PoseEstimate mt2_ll1 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelight1);
-            LimelightHelpers.PoseEstimate mt2_ll2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelight2);
-
-            int combinedTagCount = 0;
-            combinedTagCount += mt2_ll1.tagCount;
-            combinedTagCount += mt2_ll2.tagCount;
-
-            if (combinedTagCount >= 2 && Math.abs(omegaDegPerSec) < 360) {
-                for (LimelightHelpers.PoseEstimate mt2 : new LimelightHelpers.PoseEstimate[]{mt2_ll1, mt2_ll2}) {
-                    if (mt2 == null || mt2.tagCount == 0) continue;
-                    VisionEstimation.addLimelightMeasurement(mt2.pose, mt2.timestampSeconds);
-                }
+            if(ll2.tagCount > 0) {
+                VisionEstimation.addLimelightMeasurement(
+                        ll2.pose,
+                        ll2.timestampSeconds);
             }
         }
 
-        questNav.commandPeriodic();
-
         SmartDashboard.putBoolean("QuestNav/Connected", questNav.isConnected());
-        SmartDashboard.putBoolean("QuestNav/Tracking", questNav.isTracking());
-        SmartDashboard.putNumber("QuestNav/Latency", questNav.getLatency());
-
-
+        SmartDashboard.putBoolean("QuestNav/Tracking" , questNav.isTracking());
+        SmartDashboard.putNumber("QuestNav/Latency"   , questNav.getLatency());
+        
         PoseFrame[] poseFrames = questNav.getAllUnreadPoseFrames();
 
         Pose3d robotPoseNavX = null;
         if (poseFrames.length > 0) {
-
             Pose3d questPose = poseFrames[poseFrames.length - 1].questPose3d();
             robotPoseNavX = questPose.transformBy(QuestNavConstants.ROBOT_TO_QUEST.inverse());
 
-            if(robotPoseNavX != null) {
+            if (robotPoseNavX != null) {
                 VisionEstimation.addQuestMeasurement(
                         robotPoseNavX.toPose2d(),
                         questNav.getLatency()
@@ -197,22 +217,22 @@ public class Robot extends TimedRobot {
         }
 
         Pose2d realPose = robotContainer.drivetrain.getState().Pose;
-
         int zone = robotContainer.stableZoneLookup.getStableZone(realPose);
         currentZone.set(zoneName(zone));
 
         robotContainer.visionSim.updateSim(realPose);
         robotContainer.visionEst.update();
 
+            if (navXpos != null) {
+                navXpos.set(robotPoseNavX);
+            }
+
+            posEst.set(VisionEstimation.getEstimatedPose2d());
+
 //        robotContainer.limelightSource.getVisionUpdate()
 //                .ifPresent(vu -> VisionEstimation.addLimelightMeasurement(vu.pose()));
-
 //        navXpos.set(robotContainer.questNavSubsystem.getLatestNoisyQuestNavPose());
-        if(navXpos != null) {
-            navXpos.set(robotPoseNavX);
-        }
 //        pos.set(robotContainer.drivetrain.getState().Pose);
-        posEst.set(VisionEstimation.getEstimatedPose2d());
 //        rot.set(VisionEstimation.getEstimatedPose2d().getRotation().getDegrees());
 //        realRot.set(realPose.getRotation().getRadians());
 
@@ -239,13 +259,13 @@ public class Robot extends TimedRobot {
             LinearVelocity bestSpeed = MetersPerSecond.of(result.getSecond().getResults().get(0).getVel().getNorm());
             Angle bestAngle = Radians.of(HelperFunctionsKt.angle(result.getSecond().getResults().get(0).getVel()));
             LinearVelocity initialSpeed = MetersPerSecond.of(result.getSecond().getResults()
-                                    .get(result.getSecond().getResults().size() - 1)
-                                    .getVel()
-                                    .getNorm());
+                    .get(result.getSecond().getResults().size() - 1)
+                    .getVel()
+                    .getNorm());
 
             Angle initalAngle = Radians.of(HelperFunctionsKt.angle(
-                                            result.getSecond().getResults()
-                                            .get(result.getSecond().getResults().size() - 1).getVel()));
+                    result.getSecond().getResults()
+                            .get(result.getSecond().getResults().size() - 1).getVel()));
 
             System.out.println("Best Speed: " + bestSpeed);
             System.out.println("Best Angle: " + bestAngle.in(Degrees));
@@ -263,7 +283,7 @@ public class Robot extends TimedRobot {
             );
             fuelOnFly.launch();
             SimulatedArena.getInstance().addGamePieceProjectile(fuelOnFly);
-            System.out.println("projectiles=" + fuelProjectile.size());
+            System.out.println("projectiles = " + fuelProjectile.size());
         }
 
         lastshot = shoot;
@@ -277,5 +297,6 @@ public class Robot extends TimedRobot {
                         .map(GamePiece::getPose3d)
                         .toArray()
         );
+    }
     }
 }
