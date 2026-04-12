@@ -8,8 +8,13 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Vector;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.path.PathPlannerPath;
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.generated.QuestNavConstants;
 import frc.robot.subsystems.vision.LimelightHelpers;
 import gg.questnav.questnav.PoseFrame;
@@ -36,6 +41,7 @@ import static frc.robot.DataClassesKt.zoneName;
 import static frc.robot.projectile.BetterSimKt.speedOptimizer;
 
 public class Robot extends TimedRobot {
+    private Command m_autonomousCommand;
     QuestNav questNav = new QuestNav();
 
     private static final String limelight1 = "limelight-two";
@@ -101,18 +107,25 @@ public class Robot extends TimedRobot {
 
     @Override
     public void autonomousInit() {
+        m_autonomousCommand = robotContainer.getAutonomousCommand();
+
+        if (m_autonomousCommand != null) {
+            CommandScheduler.getInstance().schedule(m_autonomousCommand);
+        }
     }
 
     @Override
-    public void autonomousPeriodic() {
-    }
+    public void autonomousPeriodic() {}
 
     @Override
-    public void autonomousExit() {
-    }
+    public void autonomousExit() {}
 
     @Override
     public void teleopInit() {
+        if (m_autonomousCommand != null) {
+            CommandScheduler.getInstance().cancel(m_autonomousCommand);
+        }
+
         lastshot = robotContainer.shooting();
         LimelightHelpers.SetThrottle("limelight1", 0);
         LimelightHelpers.SetThrottle("limelight2", 0);
@@ -211,7 +224,7 @@ public class Robot extends TimedRobot {
             if (robotPoseNavX != null) {
                 VisionEstimation.addQuestMeasurement(
                         robotPoseNavX.toPose2d(),
-                        questNav.getLatency()
+                        questNav.getLatency() * 1000.0
                 );
             }
         }
@@ -236,8 +249,8 @@ public class Robot extends TimedRobot {
 //        rot.set(VisionEstimation.getEstimatedPose2d().getRotation().getDegrees());
 //        realRot.set(realPose.getRotation().getRadians());
 
-        boolean shoot = robotContainer.shooting();
-        if (shoot && !lastshot) {
+        boolean shoot = robotContainer.shooting;
+        if (shoot) {
             robotTranslation = realPose.getTranslation();
             robotRotation = realPose.getRotation();
             robotSpeeds = robotContainer.drivetrain.getState().Speeds;

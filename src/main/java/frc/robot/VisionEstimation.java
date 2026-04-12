@@ -124,11 +124,9 @@ public class VisionEstimation {
             return;
         }
 
-        double timestampSeconds = Timer.getFPGATimestamp() - latencySeconds;
-
         poseEstimator.addVisionMeasurement(
                 measuredPose,
-                timestampSeconds,
+                latencySeconds,
                 visionStdDevs
         );
     }

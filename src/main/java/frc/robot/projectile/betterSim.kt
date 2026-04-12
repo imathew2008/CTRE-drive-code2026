@@ -231,7 +231,8 @@ fun sim(distToGoal: Vector3, p0: Vector3, v0: Vector3, dt: Double, airResistance
  *  - best velocity vector found
  *  - corresponding SimResult
  */
-inline fun speedOptimizer(distToGoal: Vector3, p0: Vector3, spin: Boolean, airResistance: Boolean, log: (Int, Vector3, SimResult) -> Unit =
+inline fun speedOptimizer(distToGoal: Vector3, p0: Vector3, spin: Boolean, airResistance: Boolean,
+                          log: (Int, Vector3, SimResult) -> Unit =
     { _, _, _ -> }): Pair<Vector3, SimResult> {
 
     val seed    = v0ball

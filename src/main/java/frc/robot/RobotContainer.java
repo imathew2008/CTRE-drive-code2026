@@ -6,8 +6,18 @@ package frc.robot;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.pathplanner.lib.auto.NamedCommands;
+import com.pathplanner.lib.commands.FollowPathCommand;
+import com.pathplanner.lib.commands.PathPlannerAuto;
+import com.pathplanner.lib.path.PathConstraints;
 import edu.wpi.first.math.geometry.*;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Filesystem;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.questNav.QuestNavSubsystem;
 import frc.robot.subsystems.swerve.CommandSwerveDrivetrain;
@@ -18,6 +28,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
+import com.pathplanner.lib.auto.AutoBuilder;
 import frc.robot.zones.StableZoneLookup;
 import frc.robot.zones.ZoneLookup;
 import java.io.File;
@@ -25,6 +36,7 @@ import static edu.wpi.first.units.Units.*;
 import static frc.robot.HelperFunctionsKt.*;
 
 public class RobotContainer {
+    public boolean shooting = false;
     private final ZoneLookup zoneLookup =
             new ZoneLookup(
                     FilteredFieldMap.WIDTH,
@@ -68,8 +80,21 @@ public class RobotContainer {
 
     AprilTagFieldLayout fieldLayout;
 
+    private final SendableChooser<Command> autoChooser = new SendableChooser<>();
+
     public RobotContainer() {
+        NamedCommands.registerCommand("startShoot", startSimShoot());
+        NamedCommands.registerCommand("stopShoot", stopSimShoot());
+        NamedCommands.registerCommand("extendIntake", stopSimShoot());
+        NamedCommands.registerCommand("intakeIntake", stopSimShoot());
+        NamedCommands.registerCommand("runIntake", stopSimShoot());
+
+//        autoChooser.setDefaultOption("Normal Auto", new PathPlannerAuto("auto-one"));
+        autoChooser.setDefaultOption("Pathfind + Auto", getPathfindThenAuto());
+        SmartDashboard.putData("Auto Chooser", autoChooser);
+
         configureBindings();
+        CommandScheduler.getInstance().schedule(FollowPathCommand.warmupCommand());
 
         bumpHeadingPid.enableContinuousInput(-Math.PI, Math.PI);
 
@@ -114,6 +139,25 @@ public class RobotContainer {
     public boolean shooting() { return joystick.a().getAsBoolean(); }
 
     private void configureBindings() {
+//        SmartDashboard.putData("Example Auto", new PathPlannerAuto("auto-one"));
+
+//        SmartDashboard.putData("Pathfind to Start Pos", AutoBuilder.pathfindToPose(
+//                new Pose2d(14.0, 6.5, Rotation2d.fromDegrees(0)),
+//                new PathConstraints(
+//                        4.0, 4.0,
+//                        Units.degreesToRadians(360), Units.degreesToRadians(540)
+//                ),
+//                0
+//        ));
+//        SmartDashboard.putData("Pathfind to Bump Pos", AutoBuilder.pathfindToPose(
+//                new Pose2d(2.15, 3.0, Rotation2d.fromDegrees(180)),
+//                new PathConstraints(
+//                        4.0, 4.0,
+//                        Units.degreesToRadians(360), Units.degreesToRadians(540)
+//                ),
+//                0
+//        ));
+
         drivetrain.setDefaultCommand(
                 drivetrain.applyRequest(() -> {
                     double x   = -joystick.getLeftY();
@@ -180,21 +224,6 @@ public class RobotContainer {
                             .withRotationalRate(omega);
                 })
         );
-//        drivetrain.setDefaultCommand(
-//                drivetrain.applyRequest(() -> {
-//                    double x   = -joystick.getLeftY();
-//                    double y   = -joystick.getLeftX();
-//                    double rot = -joystick.getRightX();
-//
-//                    double[] xy  = applyCircularDeadband(x, y, deadBand);
-//                    xy           = squareVectorKeepDirection(xy[0], xy[1]);
-//                    double omega = squareKeepSign(applyDeadband1D(rot, deadBand));
-//
-//                    return drive
-//                            .withVelocityX(xy[0] * MaxSpeed)
-//                            .withVelocityY(xy[1] * MaxSpeed)
-//                            .withRotationalRate(omega * MaxAngularRate);
-//                }));
 
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
         joystick.b()
@@ -210,14 +239,43 @@ public class RobotContainer {
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+        joystick.back() .and(joystick.y()) .whileTrue(drivetrain.sysIdDynamic    (Direction.kForward));
+        joystick.back() .and(joystick.x()) .whileTrue(drivetrain.sysIdDynamic    (Direction.kReverse));
+        joystick.start().and(joystick.y()) .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+        joystick.start().and(joystick.x()) .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // reset the field-centric heading on left bumper press
         joystick.leftBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
 
         drivetrain.registerTelemetry(logger::telemeterize);
+    }
+
+    public Command getAutonomousCommand() {
+        return autoChooser.getSelected();
+    }
+
+    public Command startSimShoot() {
+        shooting = true;
+        return null;
+    }
+
+    public Command stopSimShoot() {
+        shooting = false;
+        return null;
+    }
+
+    public Command getPathfindThenAuto() {
+        return Commands.sequence(
+                AutoBuilder.pathfindToPose(
+                        new Pose2d(3.6, 7.371, Rotation2d.fromDegrees(0)),
+                        new PathConstraints(
+                                2.0, 2.0,
+                                Units.degreesToRadians(360),
+                                Units.degreesToRadians(540)
+                        ),
+                        0.0
+                ),
+                new PathPlannerAuto("auto-one")
+        );
     }
 }
