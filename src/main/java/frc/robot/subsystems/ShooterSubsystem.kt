@@ -1,4 +1,4 @@
-package frc.robot.subsystems.shooter
+package frc.robot.subsystems
 
 import com.ctre.phoenix6.configs.CANcoderConfiguration
 import com.ctre.phoenix6.configs.FeedbackConfigs
@@ -15,7 +15,6 @@ import com.ctre.phoenix6.signals.NeutralModeValue
 import edu.wpi.first.math.MathUtil
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj2.command.SubsystemBase
-import frc.robot.subsystems.ShooterConstants
 import frc.robot.subsystems.projectile.Vector3
 import frc.robot.subsystems.projectile.analyticInitialGuess
 import kotlin.math.PI
@@ -215,12 +214,12 @@ class ShooterSubsystem : SubsystemBase() {
         val hoodAngleRad = atan2(velocity.y, horizontalSpeed)
         val turretAngleRad = atan2(velocity.z, velocity.x)
 
-        setHoodGoalRot(hoodRadiansToMechanismRotations(hoodAngleRad))
-        setTurretGoalRot(turretRadiansToMechanismRotations(turretAngleRad))
-
-        val topRps = projectileSpeedToTopFlywheelRps(speed)
-        val bottomRps = projectileSpeedToBottomFlywheelRps(speed)
-        setFlywheelSpeeds(topRps, bottomRps)
+//        setHoodGoalRot(hoodRadiansToMechanismRotations(hoodAngleRad))
+//        setTurretGoalRot(turretRadiansToMechanismRotations(turretAngleRad))
+//
+//        val topRps = projectileSpeedToTopFlywheelRps(speed)
+//        val bottomRps = projectileSpeedToBottomFlywheelRps(speed)
+//        setFlywheelSpeeds(topRps, bottomRps)
 
         hasValidShotSolution = true
     }
@@ -245,21 +244,21 @@ class ShooterSubsystem : SubsystemBase() {
         return true
     }
 
-    private fun hoodRadiansToMechanismRotations(angleRad: Double): Double {
-        return ShooterConstants.HOOD_ZERO_ROT + angleRad / (2.0 * PI)
-    }
-
-    private fun turretRadiansToMechanismRotations(angleRad: Double): Double {
-        return ShooterConstants.TURRET_ZERO_ROT + angleRad / (2.0 * PI)
-    }
-
-    private fun projectileSpeedToTopFlywheelRps(speedMps: Double): Double {
-        return speedMps * ShooterConstants.TOP_FLYWHEEL_RPS_PER_MPS
-    }
-
-    private fun projectileSpeedToBottomFlywheelRps(speedMps: Double): Double {
-        return speedMps * ShooterConstants.BOTTOM_FLYWHEEL_RPS_PER_MPS
-    }
+//    private fun hoodRadiansToMechanismRotations(angleRad: Double): Double {
+//        return ShooterConstants.HOOD_ZERO_ROT + angleRad / (2.0 * PI)
+//    }
+//
+//    private fun turretRadiansToMechanismRotations(angleRad: Double): Double {
+//        return ShooterConstants.TURRET_ZERO_ROT + angleRad / (2.0 * PI)
+//    }
+//
+//    private fun projectileSpeedToTopFlywheelRps(speedMps: Double): Double {
+//        return speedMps * ShooterConstants.TOP_FLYWHEEL_RPS_PER_MPS
+//    }
+//
+//    private fun projectileSpeedToBottomFlywheelRps(speedMps: Double): Double {
+//        return speedMps * ShooterConstants.BOTTOM_FLYWHEEL_RPS_PER_MPS
+//    }
 
     override fun periodic() {
         SmartDashboard.putNumber("Shooter/TurretGoalRot", turretGoalRot)

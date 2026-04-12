@@ -9,14 +9,14 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
-import frc.robot.subsystems.IntakeConstants;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.projectile.Vector3;
-import frc.robot.subsystems.shooter.ShooterSubsystem;
+import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.drive.CommandSwerveDrivetrain;
-import frc.robot.subsystems.intake.IntakeSubsystem;
+import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.IndexSubsystem;
 
 public class RobotContainer {
@@ -113,102 +113,33 @@ public class RobotContainer {
                 drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
+        //x-lock
         driverController.rightTrigger().whileTrue(
                 drivetrain.applyRequest(() -> brake));
 
-        manipulatorController.rightTrigger(triggerThreshold).whileTrue(
-                Commands.runEnd(
-                        () -> {
-                            indexer.runIndexer();
-                            indexer.runFeeder();
-                        },
-                        () -> {
-                            indexer.stopIndexer();
-                            indexer.stopFeeder();
-                        }
-                )
-        );
+        //hopper extrusion
+        new Trigger(() -> driverController.getRightTriggerAxis() > 0.3)
+                .onTrue(Commands.runOnce(intake::requestExtended, intake))
+                .onFalse(Commands.runOnce(intake::requestIn, intake));
 
-//        driverController.rightTrigger(triggerThreshold).whileTrue(
-//                Commands.run(
-//                        intake::intakeActuation,
-//                        intake
-//                )
-//        );
-//
-//        driverController.leftTrigger(triggerThreshold).whileTrue(
-//                Commands.runEnd(
-//                        () -> intake.setRollerVoltage(IntakeConstants.ROLLER_INTAKE_VOLTS),
-//                        intake::stopRollers,
-//                        intake
-//                )
-//        );
-//
-//        manipulatorController.leftTrigger(triggerThreshold).whileTrue(
-//                Commands.runEnd(
-//                        () -> shooter.updateShotFromPosition(getCurrentShooterPosition()),
-//                        shooter::stopAimingAndSpinning,
-//                        shooter
-//                )
-//        );
-//
-//        manipulatorController.leftTrigger(triggerThreshold).whileTrue(
-//                Commands.runEnd(
-//                        () -> shooter.setFlywheelSpeeds(3830.2481, 3830.2481),
-//                        shooter::stopAiming,
-//                        shooter
-//                )
-//        );
-//
-//        manipulatorController.rightTrigger(triggerThreshold).whileTrue(
-//                Commands.runEnd(
-//                        () -> {
-//                            if (shooter.readyToFire()) {
-//                                indexer.runIndexer();
-//                                indexer.runFeeder();
-//                            } else {
-//                                indexer.stopIndexer();
-//                                indexer.stopFeeder();
-//                            }
-//                        },
-//                        () -> {
-//                            indexer.stopIndexer();
-//                            indexer.stopFeeder();
-//                        },
-//                        indexer
-//                )
-//        );
-//
-//        manipulatorController.a().whileTrue(
-//                Commands.runEnd(
-//                        () -> intake.setRollerVoltage(IntakeConstants.ROLLER_OUTTAKE_VOLTS),
-//                        intake::stopRollers,
-//                        intake
-//                )
-//        );
-//
-//        manipulatorController.b().whileTrue(
-//                Commands.parallel(
-//                        Commands.runEnd(
-//                                indexer::runIndexerReverse,
-//                                indexer::stopIndexer,
-//                                indexer
-//                        ),
-//                        Commands.runEnd(
-//                                indexer::runFeederReverse,
-//                                indexer::stopFeeder,
-//                                indexer
-//                        )
-//                )
-//        );
-//
-//        manipulatorController.leftTrigger(triggerThreshold).whileTrue(
-//                Commands.runEnd(
-//                        shooter::runFlywheels,
-//                        shooter::stopFlywheels,
-//                        shooter
-//                )
-//        );
+        //intake rollers
+        new Trigger(() -> driverController.getLeftTriggerAxis() > 0.3)
+                .whileTrue(Commands.run(intake::requestRunIntake, intake))
+                .onFalse(Commands.runOnce(intake::requestStopIntake, intake));
+
+        //run indexer
+        new Trigger(() -> manipulatorController.getLeftTriggerAxis() > 0.3)
+                .whileTrue(Commands.run(indexer::requestRunIndexer, indexer))
+                .onFalse(Commands.runOnce(indexer::requestStopIndexer, indexer));
+
+        //run trigger
+        new Trigger(() -> manipulatorController.getRightTriggerAxis() > 0.3)
+                .whileTrue(Commands.run(indexer::requestRunTrigger, indexer))
+                .onFalse(Commands.runOnce(indexer::requestStopTrigger, indexer));
+
+        //reverse intake rollers
+        manipulatorController.a().whileTrue(Commands.run(intake::requestReverseIntake, intake))
+                .onFalse(Commands.runOnce(intake::requestStopIntake, intake));
 
         driverController.back().and(driverController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         driverController.back().and(driverController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
