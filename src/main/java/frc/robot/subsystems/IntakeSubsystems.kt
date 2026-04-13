@@ -1,5 +1,6 @@
 package frc.robot.subsystems
 
+import com.ctre.phoenix6.CANBus
 import com.ctre.phoenix6.configs.TalonFXConfiguration
 import com.ctre.phoenix6.controls.Follower
 import com.ctre.phoenix6.controls.TorqueCurrentFOC
@@ -31,12 +32,12 @@ enum class RollerState {
 }
 
 class IntakeSubsystem : SubsystemBase() {
-    private val deployMotor = TalonFX(IntakeConstants.EXTENSION_MOTOR_ID)
-    private val rightRollerMotor = TalonFX(IntakeConstants.RIGHT_ROLLER_MOTOR_ID)
-    private val lefRollerMotor = TalonFX(IntakeConstants.LEFT_ROLLER_MOTOR_ID)
+    val kCANBus: CANBus = CANBus("Default Name", "./logs/example.hoot")
+    private val deployMotor = TalonFX(IntakeConstants.EXTENSION_MOTOR_ID, kCANBus)
+    private val rightRollerMotor = TalonFX(IntakeConstants.RIGHT_ROLLER_MOTOR_ID, kCANBus)
+    private val lefRollerMotor = TalonFX(IntakeConstants.LEFT_ROLLER_MOTOR_ID, kCANBus)
 
-    private val deployRequest: TorqueCurrentFOC = TorqueCurrentFOC(0.0)
-        .withOverrideCoastDurNeutral(false)
+    private val deployRequest = TorqueCurrentFOC(0.0)
     private val rollerRequest = VoltageOut(0.0)
 
     var currentHopperState: IntakeState = IntakeState.IN
@@ -77,6 +78,12 @@ class IntakeSubsystem : SubsystemBase() {
 
     fun requestStopIntake() {
         rollerState = RollerState.OFF
+    }
+
+    fun requestToggle() {
+        if(currentHopperState == IntakeState.EXTENDED || currentHopperState == IntakeState.GOING_OUT) {
+            desiredHopperState = IntakeState.IN
+        } else desiredHopperState = IntakeState.EXTENDED
     }
 
     override fun periodic() {
@@ -206,23 +213,26 @@ class IntakeSubsystem : SubsystemBase() {
     private fun extensionMotorOutputs() {
         val deployCmd = calculateDeployTorqueCommand()
         deployMotor.setControl(deployRequest.withOutput(deployCmd))
+
+        SmartDashboard.putNumber("Intake/DeployCmd_A", deployCmd)
+        SmartDashboard.putNumber("Intake/DeployTorqueCurrent_A", deployMotor.torqueCurrent.valueAsDouble)
+        SmartDashboard.putNumber("Intake/DeployStatorCurrent_A", deployMotor.statorCurrent.valueAsDouble)
     }
 
     private fun rollerMotorOutputs() {
-        val rollerCmd = if (currentHopperState == IntakeState.EXTENDED) ROLLER_VOLTAGE else 0.0
+        val rollerCmd = if (rollerState == RollerState.IN) ROLLER_VOLTAGE else 0.0
         rightRollerMotor.setControl(rollerRequest.withOutput(rollerCmd))
     }
 
     private fun configureDeployMotor() {
         val cfg = TalonFXConfiguration()
 
+        cfg.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive
+        cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake
         cfg.CurrentLimits.StatorCurrentLimit = 60.0
         cfg.CurrentLimits.StatorCurrentLimitEnable = true
         cfg.CurrentLimits.SupplyCurrentLimit = 40.0
         cfg.CurrentLimits.SupplyCurrentLimitEnable = true
-
-        cfg.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive
-        cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake
 
         deployMotor.configurator.apply(cfg)
     }
@@ -238,8 +248,9 @@ class IntakeSubsystem : SubsystemBase() {
     private fun publishTelemetry() {
         SmartDashboard.putString("Intake/CurrentState", currentHopperState.name)
         SmartDashboard.putString("Intake/DesiredState", desiredHopperState.name)
-        SmartDashboard.putNumber("Intake/DeployCurrent_A", deployMotor.statorCurrent.valueAsDouble)
-        SmartDashboard.putNumber("Intake/DeployCmd_A", calculateDeployTorqueCommand())
+//        SmartDashboard.putNumber("Intake/DeployTorqueCurrent_A", deployMotor.torqueCurrent.valueAsDouble)
+//        SmartDashboard.putNumber("Intake/DeployStatorCurrent_A", deployMotor.statorCurrent.valueAsDouble)
+//        SmartDashboard.putNumber("Intake/DeployCmd_A", calculateDeployTorqueCommand())
         SmartDashboard.putNumber("Intake/StallTimer_s", stallTimer)
         SmartDashboard.putBoolean("Intake/IsRampingDown", rampingDown)
         SmartDashboard.putNumber("Intake/StateTimer_s", stateTimer.get())
