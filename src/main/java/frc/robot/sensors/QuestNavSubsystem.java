@@ -37,6 +37,7 @@ public class QuestNavSubsystem extends SubsystemBase {
         SmartDashboard.putBoolean("QuestNav/Connected", questNav.isConnected());
         SmartDashboard.putBoolean("QuestNav/Tracking", questNav.isTracking());
         SmartDashboard.putNumber("QuestNav/Latency", questNav.getLatency());
+        SmartDashboard.putString("QuestNav/Battery %", questNav.getBatteryPercent().toString());
 
         PoseFrame[] poseFrames = questNav.getAllUnreadPoseFrames();
         if (poseFrames.length > 0) {
