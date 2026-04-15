@@ -40,14 +40,14 @@ public class RobotContainer {
     private static final double deadBand = 0.05;
     private static final double triggerThreshold = 0.3;
 
-    private final ZoneLookup zoneLookup =
-            new ZoneLookup(
-                    FilteredFieldMap.WIDTH,
-                    FilteredFieldMap.HEIGHT,
-                    FilteredFieldMap.CELL_SIZE_INCHES,
-                    FilteredFieldMap.INSTANCE.getZONES()
-            );
-    final StableZoneLookup stableZoneLookup = new StableZoneLookup(zoneLookup);
+//    private final ZoneLookup zoneLookup =
+//            new ZoneLookup(
+//                    FilteredFieldMap.WIDTH,
+//                    FilteredFieldMap.HEIGHT,
+//                    FilteredFieldMap.CELL_SIZE_INCHES,
+//                    FilteredFieldMap.INSTANCE.getZONES()
+//            );
+//    final StableZoneLookup stableZoneLookup = new StableZoneLookup(zoneLookup);
 
     private final double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     private final double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
@@ -72,6 +72,8 @@ public class RobotContainer {
 
     private final SendableChooser<Command> autoChooser;
 
+    StructPublisher<Pose2d> posEstLimelight = NetworkTableInstance.getDefault().getStructTopic("PosEstLimelight", Pose2d.struct)
+            .publish();
     StructPublisher<Pose2d> posEst = NetworkTableInstance.getDefault().getStructTopic("PosEst", Pose2d.struct)
             .publish();
 
@@ -79,7 +81,7 @@ public class RobotContainer {
         configureBindings();
 
         this.questNavSubsystem = new QuestNavSubsystem();
-        this.limelightSubsystem = new LimelightSubsystem(drivetrain);
+        this.limelightSubsystem = new LimelightSubsystem(drivetrain, questNavSubsystem.questNav);
 
         autoChooser = AutoBuilder.buildAutoChooser("Tests");
         SmartDashboard.putData("Auto Chooser", autoChooser);
@@ -159,10 +161,11 @@ public class RobotContainer {
 
         drivetrain.registerTelemetry(logger::telemeterize);
 
-        int currentZone = stableZoneLookup.getStableZone(drivetrain.getState().Pose);
-
-        SmartDashboard.putString("Zone/Current Zone", zoneName(currentZone));
+//        int currentZone = stableZoneLookup.getStableZone(drivetrain.getState().Pose);
+//        SmartDashboard.putString("Zone/Current Zone", zoneName(currentZone));
         posEst.set(VisionEstimation.getEstimatedPose2d());
+        assert limelightSubsystem != null;
+//        posEstLimelight.set(limelightSubsystem.getPos());
     }
 
     public Command getAutonomousCommand() {
