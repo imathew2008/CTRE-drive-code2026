@@ -23,14 +23,13 @@ import kotlin.math.atan2
 import kotlin.math.sqrt
 
 class ShooterSubsystem : SubsystemBase() {
-    val canBus: CANBus = CANBus("Default Name", "./logs/example.hoot")
-    private val hoodMotor     = TalonFX(ShooterConstants.HOOD_MOTOR_ID, canBus)
-    private val turretMotor   = TalonFX(ShooterConstants.TURRET_MOTOR_ID, canBus)
-    private val upperFlywheel = TalonFX(ShooterConstants.LEFT_FLYWHEEL_MOTOR_ID, canBus)
-    private val lowerFlywheel = TalonFX(ShooterConstants.RIGHT_FLYWHEEL_MOTOR_ID, canBus)
-
-    private val turretEncoder = CANcoder(ShooterConstants.TURRET_ENCODER_ID, canBus)
-    private val hoodEncoder   = CANcoder(ShooterConstants.HOOD_ENCODER_ID, canBus)
+    val shooterCANBus: CANBus = CANBus("Shooter CANivore")
+    val defaultCANBus: CANBus = CANBus("Default Name")
+    private val hoodMotor     = TalonFX(ShooterConstants.HOOD_MOTOR_ID, shooterCANBus)
+    private val upperFlywheel = TalonFX(ShooterConstants.TOP_FLYWHEEL_MOTOR_ID, shooterCANBus)
+    private val lowerFlywheel = TalonFX(ShooterConstants.BOTTOM_FLYWHEEL_MOTOR_ID, shooterCANBus)
+    private val turretMotor   = TalonFX(ShooterConstants.TURRET_MOTOR_ID, defaultCANBus)
+    private val turretEncoder = CANcoder(ShooterConstants.TURRET_ENCODER_ID, defaultCANBus)
 
     private val turretRequest   = MotionMagicTorqueCurrentFOC(0.0)        .withSlot(0)
     private val hoodRequest     = MotionMagicTorqueCurrentFOC(0.0)        .withSlot(0)
@@ -57,8 +56,7 @@ class ShooterSubsystem : SubsystemBase() {
     }
 
     private fun configTurret() {
-        val encoderCfg = CANcoderConfiguration()
-        turretEncoder.configurator.apply(encoderCfg)
+        turretEncoder.configurator.apply(CANcoderConfiguration())
 
         val cfg = TalonFXConfiguration()
 
@@ -69,7 +67,7 @@ class ShooterSubsystem : SubsystemBase() {
         cfg.Feedback = FeedbackConfigs()
             .withFeedbackSensorSource(FeedbackSensorSourceValue.FusedCANcoder)
             .withFeedbackRemoteSensorID(ShooterConstants.TURRET_ENCODER_ID)
-//            .withRotorToSensorRatio(ShooterConstants.TURRET_ROTOR_TO_SENSOR_RATIO)
+            .withSensorToMechanismRatio(ShooterConstants.TURRET_PRIMARY_TO_MECHANISM_RATIO)
 //            .withSensorToMechanismRatio(ShooterConstants.TURRET_SENSOR_TO_MECHANISM_RATIO)
 
         cfg.Slot0 = Slot0Configs()
@@ -90,9 +88,6 @@ class ShooterSubsystem : SubsystemBase() {
     }
 
     private fun configHood() {
-        val encoderCfg = CANcoderConfiguration()
-        hoodEncoder.configurator.apply(encoderCfg)
-
         val cfg = TalonFXConfiguration()
 
         cfg.MotorOutput = MotorOutputConfigs()
@@ -101,9 +96,6 @@ class ShooterSubsystem : SubsystemBase() {
 
         cfg.Feedback = FeedbackConfigs()
             .withFeedbackSensorSource(FeedbackSensorSourceValue.FusedCANcoder)
-            .withFeedbackRemoteSensorID(ShooterConstants.HOOD_ENCODER_ID)
-//            .withRotorToSensorRatio(ShooterConstants.HOOD_ROTOR_TO_SENSOR_RATIO)
-//            .withSensorToMechanismRatio(ShooterConstants.HOOD_SENSOR_TO_MECHANISM_RATIO)
 
         cfg.Slot0 = Slot0Configs()
             .withKS(ShooterConstants.HOOD_kS)
@@ -117,7 +109,6 @@ class ShooterSubsystem : SubsystemBase() {
         cfg.MotionMagic.MotionMagicCruiseVelocity = ShooterConstants.HOOD_CRUISE_VEL
         cfg.MotionMagic.MotionMagicAcceleration   = ShooterConstants.HOOD_ACCEL
         cfg.MotionMagic.MotionMagicJerk           = ShooterConstants.HOOD_JERK
-
         cfg.CurrentLimits.StatorCurrentLimit       = 40.0
         cfg.CurrentLimits.StatorCurrentLimitEnable = true
 
@@ -267,11 +258,8 @@ class ShooterSubsystem : SubsystemBase() {
         val upperRps = (velocityMps / upperCircumferenceM) * gearRatio
         val lowerRps = (velocityMps / lowerCircumferenceM) * gearRatio
 
-//        val hoodRot   = hoodDeg   / 360.0 * ShooterConstants.HOOD_SENSOR_TO_MECHANISM_RATIO
-//        val turretRot = turretDeg / 360.0 * ShooterConstants.TURRET_SENSOR_TO_MECHANISM_RATIO
-
-        val hoodRot   = hoodDeg   / 360.0 * 1.0
-        val turretRot = turretDeg / 360.0 * 1.0
+        val hoodRot   = hoodDeg   / 360.0 * ShooterConstants.HOOD_GEAR_RATIO
+        val turretRot = turretDeg / 360.0 * ShooterConstants.TURRET_PRIMARY_TO_MECHANISM_RATIO
 
         setFlywheelSpeeds(upperRps, lowerRps)
         setHoodGoalRot(hoodRot)
@@ -279,52 +267,49 @@ class ShooterSubsystem : SubsystemBase() {
     }
 
     override fun periodic() {
-        // What we're commanding
-        SmartDashboard.putNumber("Shooter/TopFlywheel/GoalRps",        topFlywheelGoalRps)
-        SmartDashboard.putNumber("Shooter/TopFlywheel/ClosedLoopRef",  upperFlywheel.closedLoopReference.valueAsDouble)
-        SmartDashboard.putNumber("Shooter/TopFlywheel/ClosedLoopOut",  upperFlywheel.closedLoopOutput.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/GoalRps",        topFlywheelGoalRps)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/ClosedLoopRef",  upperFlywheel.closedLoopReference.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/ClosedLoopOut",  upperFlywheel.closedLoopOutput.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/RotorVel",       upperFlywheel.rotorVelocity.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/MechanismVel",   upperFlywheel.velocity.valueAsDouble)
 
-// What the motor actually sees
-        SmartDashboard.putNumber("Shooter/TopFlywheel/RotorVel",       upperFlywheel.rotorVelocity.valueAsDouble)
-        SmartDashboard.putNumber("Shooter/TopFlywheel/MechanismVel",   upperFlywheel.velocity.valueAsDouble)
-
-// Error and output
-        SmartDashboard.putNumber("Shooter/TopFlywheel/ClosedLoopError",upperFlywheel.closedLoopError.valueAsDouble)
-        SmartDashboard.putNumber("Shooter/TopFlywheel/StatorCurrent",  upperFlywheel.statorCurrent.valueAsDouble)
-        SmartDashboard.putNumber("Shooter/TopFlywheel/SupplyCurrent",  upperFlywheel.supplyCurrent.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/ClosedLoopError",upperFlywheel.closedLoopError.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/StatorCurrent",  upperFlywheel.statorCurrent.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/TopFlywheel/SupplyCurrent",  upperFlywheel.supplyCurrent.valueAsDouble)
         SmartDashboard.putNumber("Shooter/TopFlywheel/MotorVoltage",   upperFlywheel.motorVoltage.valueAsDouble)
 
-        SmartDashboard.putNumber("Shooter/Turret/GoalRot",         turretGoalRot)
-        SmartDashboard.putNumber("Shooter/Turret/ClosedLoopRef",   turretMotor.closedLoopReference.valueAsDouble)
-        SmartDashboard.putNumber("Shooter/Turret/ClosedLoopOut",   turretMotor.closedLoopOutput.valueAsDouble)
-
+//        SmartDashboard.putNumber("Shooter/Turret/GoalRot",         turretGoalRot)
+//        SmartDashboard.putNumber("Shooter/Turret/ClosedLoopRef",   turretMotor.closedLoopReference.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/Turret/ClosedLoopOut",   turretMotor.closedLoopOutput.valueAsDouble)
+        SmartDashboard.putNumber("Shooter/Turret/EncoderAngle", turretEncoder.absolutePosition.valueAsDouble)
        SmartDashboard.putNumber("Shooter/Turret/MechanismPos",    turretMotor.position.valueAsDouble)
 
-        SmartDashboard.putNumber("Shooter/Turret/ClosedLoopError", turretMotor.closedLoopError.valueAsDouble)
-        SmartDashboard.putNumber("Shooter/Turret/StatorCurrent",   turretMotor.statorCurrent.valueAsDouble)
+//        SmartDashboard.putNumber("Shooter/Turret/ClosedLoopError", turretMotor.closedLoopError.valueAsDouble)
+        SmartDashboard.putNumber("Shooter/Turret/StatorCurrent",   turretMotor.torqueCurrent.valueAsDouble)
         SmartDashboard.putNumber("Shooter/Turret/SupplyCurrent",   turretMotor.supplyCurrent.valueAsDouble)
         SmartDashboard.putNumber("Shooter/Turret/MotorVoltage",    turretMotor.motorVoltage.valueAsDouble)
+        SmartDashboard.putBoolean("Shooter/Turret/TurretAlive", turretMotor.isAlive)
 
         SmartDashboard.putNumber("Shooter/FlywheelVelocityMps", ShooterConstants.ntFlywheelVelocity.get())
         SmartDashboard.putNumber("Shooter/HoodAngleDeg",        ShooterConstants.ntHoodAngleDeg.get())
         SmartDashboard.putNumber("Shooter/TurretAngleDeg",      ShooterConstants.ntTurretAngleDeg.get())
 
-        SmartDashboard.putNumber("Shooter/TurretGoalRot", turretGoalRot)
+//        SmartDashboard.putNumber("Shooter/TurretGoalRot", turretGoalRot)
         SmartDashboard.putNumber("Shooter/TurretPosRot",  turretMotor.position.valueAsDouble)
 
-        SmartDashboard.putNumber("Shooter/HoodGoalRot", hoodGoalRot)
+//        SmartDashboard.putNumber("Shooter/HoodGoalRot", hoodGoalRot)
         SmartDashboard.putNumber("Shooter/HoodPosRot",  hoodMotor.position.valueAsDouble)
 
-        SmartDashboard.putNumber("Shooter/TopFlywheelGoalRPS", topFlywheelGoalRps)
+//        SmartDashboard.putNumber("Shooter/TopFlywheelGoalRPS", topFlywheelGoalRps)
         SmartDashboard.putNumber("Shooter/TopFlywheelRPS",     upperFlywheel.velocity.valueAsDouble)
         SmartDashboard.putBoolean("Shooter/TopFlywheelAlive",     upperFlywheel.isAlive)
 
-        SmartDashboard.putNumber("Shooter/BottomFlywheelGoalRPS", bottomFlywheelGoalRps)
+//        SmartDashboard.putNumber("Shooter/BottomFlywheelGoalRPS", bottomFlywheelGoalRps)
         SmartDashboard.putNumber("Shooter/BottomFlywheelRPS",     lowerFlywheel.velocity.valueAsDouble)
 
-        SmartDashboard.putBoolean("Shooter/TurretAtGoal",     turretAtGoal())
-        SmartDashboard.putBoolean("Shooter/HoodAtGoal",       hoodAtGoal())
-        SmartDashboard.putBoolean("Shooter/FlywheelsAtSpeed", flywheelsAtSpeed())
-        SmartDashboard.putBoolean("Shooter/ReadyToFire",      readyToFire())
+//        SmartDashboard.putBoolean("Shooter/TurretAtGoal",     turretAtGoal())
+//        SmartDashboard.putBoolean("Shooter/HoodAtGoal",       hoodAtGoal())
+//        SmartDashboard.putBoolean("Shooter/FlywheelsAtSpeed", flywheelsAtSpeed())
+//        SmartDashboard.putBoolean("Shooter/ReadyToFire",      readyToFire())
     }
 }

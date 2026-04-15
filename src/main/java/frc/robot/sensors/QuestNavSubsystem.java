@@ -7,14 +7,12 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.generated.QuestNavConstants;
-import frc.robot.subsystems.drive.CommandSwerveDrivetrain;
 import gg.questnav.questnav.PoseFrame;
 import gg.questnav.questnav.QuestNav;
 
 
 public class QuestNavSubsystem extends SubsystemBase {
-    private final QuestNav questNav;
-
+    public final QuestNav questNav;
     private static final Matrix<N3, N3> QUESTNAV_R = new Matrix<>(Nat.N3(), Nat.N3());
 
     static {
@@ -25,10 +23,7 @@ public class QuestNavSubsystem extends SubsystemBase {
 
     public QuestNavSubsystem() {
         questNav = new QuestNav();
-    }
 
-    public Matrix<N3, N3> getQuestNavR() {
-        return QUESTNAV_R;
     }
 
     @Override
