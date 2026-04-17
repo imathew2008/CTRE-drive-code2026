@@ -1,7 +1,6 @@
 package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
-import static frc.robot.DataClassesKt.zoneName;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
@@ -13,7 +12,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -33,8 +31,7 @@ import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.drive.CommandSwerveDrivetrain;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.IndexSubsystem;
-import frc.robot.zones.StableZoneLookup;
-import frc.robot.zones.ZoneLookup;
+import frc.robot.util.ShotLookupTables;
 
 public class RobotContainer {
     private static final double deadBand = 0.05;
@@ -78,11 +75,12 @@ public class RobotContainer {
             .publish();
 
     public RobotContainer() {
-        configureBindings();
+        VisionEstimation.initVisionEstimation(drivetrain);
+        ShotLookupTables.load();
 
         this.questNavSubsystem = new QuestNavSubsystem();
         this.limelightSubsystem = new LimelightSubsystem(drivetrain, questNavSubsystem.questNav);
-
+        configureBindings();
         autoChooser = AutoBuilder.buildAutoChooser("Tests");
         SmartDashboard.putData("Auto Chooser", autoChooser);
         autoChooser.setDefaultOption("Pathfind to point", goToPoint());
@@ -148,10 +146,12 @@ public class RobotContainer {
         manipulatorController.a().whileTrue(Commands.runOnce(indexer::toggleModifier, indexer))
                 .onFalse(Commands.runOnce(indexer::toggleModifier, indexer));
 
-        //aim and ramp up
-        new Trigger (() -> manipulatorController.getLeftTriggerAxis() > triggerThreshold)
-                .whileTrue(Commands.run(shooter::applyNetworkTableSetpoints, shooter))
-                .onFalse(Commands.runOnce(shooter::stopAiming, shooter));
+        manipulatorController.b().whileTrue(Commands.run(() -> shooter.autoAimAndSpin(VisionEstimation.getEstimatedPose2d()), shooter));
+
+//        //aim and ramp up
+//        new Trigger (() -> manipulatorController.getLeftTriggerAxis() > triggerThreshold)
+//                .whileTrue(Commands.run(shooter::applyNetworkTableSetpoints, shooter))
+//                .onFalse(Commands.runOnce(shooter::stopAiming, shooter));
 
         driverController.back().and(driverController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         driverController.back().and(driverController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));

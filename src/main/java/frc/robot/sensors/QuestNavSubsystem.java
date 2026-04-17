@@ -38,7 +38,7 @@ public class QuestNavSubsystem extends SubsystemBase {
         if (poseFrames.length > 0) {
             Pose3d questPose = poseFrames[poseFrames.length - 1].questPose3d();
             Pose3d robotPose = questPose.transformBy(QuestNavConstants.ROBOT_TO_QUEST.inverse());
-            VisionEstimation.addQuestMeasurement(robotPose.toPose2d(), questNav.getLatency() * 1000.0);
+//            VisionEstimation.addQuestMeasurement(robotPose.toPose2d(), questNav.getLatency() * 1000.0);
         }
     }
 }

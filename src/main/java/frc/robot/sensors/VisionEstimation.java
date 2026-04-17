@@ -16,7 +16,7 @@ public class VisionEstimation {
     private static CommandSwerveDrivetrain drivetrain;
     private static SwerveDrivePoseEstimator poseEstimator;
 
-    public VisionEstimation(CommandSwerveDrivetrain drivetrain) {
+    public static void initVisionEstimation(CommandSwerveDrivetrain drivetrain) {
         VisionEstimation.drivetrain = drivetrain;
 
         Matrix<N3, N1> stateStdDevs = VecBuilder.fill(
@@ -26,9 +26,9 @@ public class VisionEstimation {
         );
 
         Matrix<N3, N1> visionStdDevs = VecBuilder.fill(
-                0.15, // x meters
-                0.15, // y meters
-                1e4  // theta radians
+                0.0001, // x meters
+                0.0001, // y meters
+                0.0001   // theta radians
         );
 
         poseEstimator = new SwerveDrivePoseEstimator(
@@ -41,107 +41,58 @@ public class VisionEstimation {
         );
     }
 
-    public void update() {
-        if (poseEstimator == null || drivetrain == null) {
-            return;
-        }
-
+    public static void update() {
         poseEstimator.update(
                 getGyroYaw(),
                 getModulePositions()
         );
     }
 
-    public static void addVisionMeasurement(
-            Pose2d measuredPose,
-            double timestampSeconds,
-            Matrix<N3, N1> visionStdDevs
-    ) {
-        if (poseEstimator == null) {
-            return;
-        }
+//
+//    public static void addQuestMeasurement(
+//            Pose2d measuredPose,
+//            double latencySeconds,
+//            Matrix<N3, N1> visionStdDevs
+//    ) {
+//        if (poseEstimator == null) {
+//            return;
+//        }
+//
+//        double timestampSeconds = Timer.getFPGATimestamp() - latencySeconds;
+//
+//        poseEstimator.addVisionMeasurement(
+//                measuredPose,
+//                timestampSeconds,
+//                visionStdDevs
+//        );
+//    }
+//
+//    public static void addQuestMeasurement(
+//            Pose2d measuredPose,
+//            double latencySeconds
+//    ) {
+//        addQuestMeasurement(
+//                measuredPose,
+//                latencySeconds,
+//                VecBuilder.fill(
+//                        0.01, // x meters
+//                        0.01, // y meters
+//                        1e-4  // theta radians
+//                )
+//        );
+//    }
 
-        poseEstimator.addVisionMeasurement(
-                measuredPose,
-                timestampSeconds,
-                visionStdDevs
-        );
-    }
-
-    public static void addVisionMeasurement(
+    public static void addLimelightMeasurement(
             Pose2d measuredPose,
             double timestampSeconds
     ) {
-        if (poseEstimator == null) {
-            return;
-        }
-
         poseEstimator.addVisionMeasurement(
-                measuredPose,
-                timestampSeconds
-        );
-    }
-
-    public static void addQuestMeasurement(
-            Pose2d measuredPose,
-            double latencySeconds,
-            Matrix<N3, N1> visionStdDevs
-    ) {
-        if (poseEstimator == null) {
-            return;
-        }
-
-        poseEstimator.addVisionMeasurement(
-                measuredPose,
-                latencySeconds,
-                visionStdDevs
-        );
-    }
-
-    public static void addQuestMeasurement(
-            Pose2d measuredPose,
-            double latencySeconds
-    ) {
-        addQuestMeasurement(
-                measuredPose,
-                latencySeconds,
-                VecBuilder.fill(
-                        0.01, // x meters
-                        0.01, // y meters
-                        1e-4  // theta radians
-                )
-        );
-    }
-
-    public static void addLimelightMeasurement(
-            Pose2d measuredPose,
-            double latencySeconds,
-            Matrix<N3, N1> visionStdDevs
-    ) {
-        if (poseEstimator == null) {
-            return;
-        }
-
-        poseEstimator.addVisionMeasurement(
-                measuredPose,
-                latencySeconds,
-                visionStdDevs
-        );
-    }
-
-    public static void addLimelightMeasurement(
-            Pose2d measuredPose,
-            double latencySeconds
-    ) {
-        double timestampSeconds = Timer.getFPGATimestamp() - latencySeconds;
-
-        addLimelightMeasurement(
                 measuredPose,
                 timestampSeconds,
                 VecBuilder.fill(
-                        0.20, // x meters
-                        0.20, // y meters
-                        1e4   // theta radians
+                        0.0001, // x meters
+                        0.0001, // y meters
+                        0.000001   // theta radians
                 )
         );
     }
@@ -153,25 +104,25 @@ public class VisionEstimation {
         return poseEstimator.getEstimatedPosition();
     }
 
-    public static void resetPose(Pose2d pose) {
-        if (poseEstimator == null || drivetrain == null) {
-            return;
-        }
+//    public static void resetPose(Pose2d pose) {
+//        if (poseEstimator == null || drivetrain == null) {
+//            return;
+//        }
+//
+//        poseEstimator.resetPosition(
+//                getGyroYaw(),
+//                getModulePositions(),
+//                pose
+//        );
+//    }
 
-        poseEstimator.resetPosition(
-                getGyroYaw(),
-                getModulePositions(),
-                pose
-        );
-    }
-
-    public static void setVisionMeasurementStdDevs(Matrix<N3, N1> visionStdDevs) {
-        if (poseEstimator == null) {
-            return;
-        }
-
-        poseEstimator.setVisionMeasurementStdDevs(visionStdDevs);
-    }
+//    public static void setVisionMeasurementStdDevs(Matrix<N3, N1> visionStdDevs) {
+//        if (poseEstimator == null) {
+//            return;
+//        }
+//
+//        poseEstimator.setVisionMeasurementStdDevs(visionStdDevs);
+//    }
 
     private static Rotation2d getGyroYaw() {
         return drivetrain.getPigeon2().getRotation2d();

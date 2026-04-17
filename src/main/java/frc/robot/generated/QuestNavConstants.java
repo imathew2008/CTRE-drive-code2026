@@ -10,9 +10,9 @@ public final class QuestNavConstants {
     public static final Transform3d ROBOT_TO_QUEST =
             new Transform3d(
                     new Translation3d(
-                            0.15,   // X forward (meters)  (replace with real values)
+                            -14 * 0.0254,   // X forward (meters)  (replace with real values)
                             0.00,   // Y left
-                            0.25    // Z up
+                            9.25 * 0.0254    // Z up
                     ),
                     new Rotation3d(
                             0.0,                    // roll

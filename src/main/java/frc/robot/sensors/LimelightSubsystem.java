@@ -59,7 +59,7 @@ public class LimelightSubsystem extends SubsystemBase {
 //                }
 //            }
 
-        if(!DriverStation.isEnabled()) {
+        if(true) {
             LimelightHelpers.SetThrottle("limelight-front", 0);
             LimelightHelpers.SetThrottle("limelight-back", 0);
 
@@ -81,22 +81,24 @@ public class LimelightSubsystem extends SubsystemBase {
             }
             if (!doRejectUpdate) {
                 if (ll1.tagCount > 0) {
-//                    VisionEstimation.addLimelightMeasurement(
-//                            ll1.pose,
-//                            ll1.timestampSeconds);
+                    VisionEstimation.addLimelightMeasurement(
+                            ll1.pose,
+                            ll1.timestampSeconds);
                     quest.setPose(new Pose3d(ll1.pose.getX(), ll1.pose.getY(), 0.0,
                             new Rotation3d(0.0, 0.0, 0.0)));
                 }
 
-//                if (ll2.tagCount > 0) {
-////                    VisionEstimation.addLimelightMeasurement(
-////                            ll2.pose,
-////                            ll2.timestampSeconds);
-//
-//                    quest.setPose(new Pose3d(ll2.pose.getX(), ll2.pose.getY(), 0.0,
-//                            new Rotation3d(0.0, 0.0, 0.0)));
-//                }
+                if (ll2.tagCount > 0) {
+                    VisionEstimation.addLimelightMeasurement(
+                            ll2.pose,
+                            ll2.timestampSeconds);
+
+                    quest.setPose(new Pose3d(ll2.pose.getX(), ll2.pose.getY(), 0.0,
+                            new Rotation3d(0.0, 0.0, 0.0)));
+                }
             }
         }
+        VisionEstimation.update();
+        SmartDashboard.putString("aaaaaaaPos", VisionEstimation.getEstimatedPose2d().toString());
     }
 }
